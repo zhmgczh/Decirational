@@ -49,7 +49,7 @@ func main() {
 ```
 
 ### ☕ Java
-The Java implementation wraps and extends the underlying precision mechanics of `java.math.BigDecimal`, offering seamless integration into enterprise applications with highly tuned JVM memory allocation strategies.
+The Java implementation offers seamless integration into enterprise applications with highly tuned JVM memory allocation strategies.
 
 ```java
 import com.decirational.DecimalRational;
