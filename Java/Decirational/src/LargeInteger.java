@@ -57,11 +57,13 @@ public class LargeInteger implements Comparable<LargeInteger> {
         return bytes;
     }
 
-    private static short[] expand(short[] integer, int length) {
-        if (length > integer.length) {
-            integer = Arrays.copyOf(integer, length);
+    private static short[] expand(byte[] integer, int length) {
+        int target_length = Math.max(integer.length, length);
+        short[] shorts = new short[target_length];
+        for (int i = 0; i < integer.length; ++i) {
+            shorts[i] = (short) (integer[i] & 0xff);
         }
-        return integer;
+        return shorts;
     }
 
     public LargeInteger(LargeInteger large_integer) {
@@ -201,7 +203,7 @@ public class LargeInteger implements Comparable<LargeInteger> {
         if (negative != other.negative) {
             return minus(other.negate());
         }
-        short[] integer = expand(bytes_to_shorts(this.integer), Math.max(this.integer.length, other.integer.length) + 1);
+        short[] integer = expand(this.integer, Math.max(this.integer.length, other.integer.length) + 1);
         for (int i = 0; i < other.integer.length; ++i) {
             integer[i] += other.integer[i];
             pass_carry(integer, i);
