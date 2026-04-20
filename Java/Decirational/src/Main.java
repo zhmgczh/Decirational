@@ -9,5 +9,8 @@ void main() {
         DecimalInteger b = new DecimalInteger(b_str);
         IO.println(integer.plus(b));
         IO.println(integer.minus(b));
+        IO.println(integer.multiply(b));
+        IO.println(integer.divide_by(b));
+        IO.println(integer.mod(b));
     }
 }
