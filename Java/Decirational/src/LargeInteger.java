@@ -44,7 +44,7 @@ public class LargeInteger implements Comparable<LargeInteger> {
     private static short[] bytes_to_shorts(byte[] bytes) {
         short[] shorts = new short[bytes.length];
         for (int i = 0; i < shorts.length; ++i) {
-            shorts[i] = bytes[i];
+            shorts[i] = (short) (bytes[i] & 0xff);
         }
         return shorts;
     }
@@ -177,9 +177,9 @@ public class LargeInteger implements Comparable<LargeInteger> {
             return negative ? -1 : 1;
         }
         for (int i = integer.length - 1; i >= 0; --i) {
-            if (integer[i] < other.integer[i]) {
+            if ((integer[i] & 0xff) < (other.integer[i] & 0xff)) {
                 return negative ? 1 : -1;
-            } else if (integer[i] > other.integer[i]) {
+            } else if ((integer[i] & 0xff) > (other.integer[i] & 0xff)) {
                 return negative ? -1 : 1;
             }
         }
@@ -254,14 +254,14 @@ public class LargeInteger implements Comparable<LargeInteger> {
         short[] integer = new short[this.integer.length + other.integer.length];
         for (int i = 0; i < this.integer.length; ++i) {
             for (int j = 0; j < other.integer.length; ++j) {
-                integer[i + j] += (byte) (this.integer[i] * other.integer[j]);
+                integer[i + j] += (short) (this.integer[i] * other.integer[j]);
                 pass_carry(integer, i + j);
             }
         }
         return new LargeInteger(shorts_to_bytes(integer), this.negative != other.negative);
     }
 
-    private byte upper_multiplier(LargeInteger dividend, LargeInteger divisor) {
+    private short upper_multiplier(LargeInteger dividend, LargeInteger divisor) {
         int left = 0;
         int right = (1 << 8) - 1;
         while (left < right) {
@@ -273,7 +273,7 @@ public class LargeInteger implements Comparable<LargeInteger> {
                 right = mid - 1;
             }
         }
-        return (byte) left;
+        return (short) left;
     }
 
     public LargeInteger multiply_256(int times) {
@@ -313,8 +313,8 @@ public class LargeInteger implements Comparable<LargeInteger> {
         LargeInteger divisor = other.abs().multiply_256(integer.length);
         for (int i = integer.length - 1; i >= 0; --i) {
             divisor = divisor.divide_by_256();
-            byte multiplier = upper_multiplier(remaining_dividend, divisor);
-            integer[i] = multiplier;
+            short multiplier = upper_multiplier(remaining_dividend, divisor);
+            integer[i] = (byte) multiplier;
             remaining_dividend = remaining_dividend.minus(divisor.multiply(numbers[multiplier]));
         }
         return new LargeInteger(integer, this.negative != other.negative);
