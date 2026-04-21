@@ -8,7 +8,7 @@ To ensure maximum interoperability and performance flexibility, this project pro
 
 ## 🚀 Features
 
-* **Exact Decimal Arithmetic**: Absolute precision for all operations in the decimal rational field (addition, subtraction, multiplication, exact division).
+* **Exact Decimal Arithmetic**: Absolute precision for all operations in the decimal rational field (addition, subtraction, multiplication, exact division, and module).
 * **High Concurrency Ready**: Thread-safe, immutable architecture designed for lock-free read operations and high-throughput multi-threaded environments.
 * **Implementation Parity**: Strict functional and API consistency across Rust, Go, and Java.
 * **Zero Dependencies**: Utilizes native big-number abstractions or highly audited, lightweight implementations to maintain secure, high-performance execution.
