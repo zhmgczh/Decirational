@@ -106,9 +106,9 @@ public class Arithmetic {
         return carry;
     }
 
-    private static int pass_carry(final int[] digits, final long sum, final int i) {
+    private static int pass_carry(final int[] integer, final long sum, final int i) {
         final int carry = (int) (sum >>> 32);
-        digits[i] = (int) (sum & 0xffffffffL);
+        integer[i] = (int) (sum & 0xffffffffL);
         return carry;
     }
 
@@ -142,33 +142,33 @@ public class Arithmetic {
         }
     }
 
-    public static void add(final int[] digits, final int[] other_digits) {
-        final int diff = digits.length - other_digits.length;
+    public static void add(final int[] integer, final int[] other_integer) {
+        final int diff = integer.length - other_integer.length;
         int carry = 0;
         final int other_offset = -diff;
-        for (int i = digits.length - 1; i >= diff; --i) {
-            final long sum = (digits[i] & 0xffffffffL) + (other_digits[other_offset + i] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(digits, sum, i);
+        for (int i = integer.length - 1; i >= diff; --i) {
+            final long sum = (integer[i] & 0xffffffffL) + (other_integer[other_offset + i] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, i);
         }
         for (int i = diff - 1; i >= 0; --i) {
-            final long sum = (digits[i] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(digits, sum, i);
+            final long sum = (integer[i] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, i);
         }
     }
 
-    public static void add(final int[] digits, final int digits_s, final int digits_length, final int[] other_digits, final int other_digits_s, final int other_digits_length) {
-        final int diff = digits_length - other_digits_length;
+    public static void add(final int[] integer, final int integer_s, final int integer_length, final int[] other_integer, final int other_integer_s, final int other_integer_length) {
+        final int diff = integer_length - other_integer_length;
         int carry = 0;
-        final int other_offset = other_digits_s - diff;
-        for (int i = digits_length - 1; i >= diff; --i) {
-            final int index = digits_s + i;
-            final long sum = (digits[index] & 0xffffffffL) + (other_digits[other_offset + i] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(digits, sum, index);
+        final int other_offset = other_integer_s - diff;
+        for (int i = integer_length - 1; i >= diff; --i) {
+            final int index = integer_s + i;
+            final long sum = (integer[index] & 0xffffffffL) + (other_integer[other_offset + i] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, index);
         }
         for (int i = diff - 1; i >= 0; --i) {
-            final int index = digits_s + i;
-            final long sum = (digits[index] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(digits, sum, index);
+            final int index = integer_s + i;
+            final long sum = (integer[index] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, index);
         }
     }
 
@@ -178,9 +178,9 @@ public class Arithmetic {
         return borrow;
     }
 
-    private static int pass_borrow(final int[] digits, final long difference, final int i) {
+    private static int pass_borrow(final int[] integer, final long difference, final int i) {
         final int borrow = (difference >= 0 ? 0 : 1);
-        digits[i] = (int) difference;
+        integer[i] = (int) difference;
         return borrow;
     }
 
@@ -214,33 +214,33 @@ public class Arithmetic {
         }
     }
 
-    public static void subtract(final int[] digits, final int[] other_digits) {
-        final int diff = digits.length - other_digits.length;
+    public static void subtract(final int[] integer, final int[] other_integer) {
+        final int diff = integer.length - other_integer.length;
         int borrow = 0;
         final int other_offset = -diff;
-        for (int i = digits.length - 1; i >= diff; --i) {
-            final long difference = (digits[i] & 0xffffffffL) - (other_digits[other_offset + i] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(digits, difference, i);
+        for (int i = integer.length - 1; i >= diff; --i) {
+            final long difference = (integer[i] & 0xffffffffL) - (other_integer[other_offset + i] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, i);
         }
         for (int i = diff - 1; i >= 0; --i) {
-            final long difference = (digits[i] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(digits, difference, i);
+            final long difference = (integer[i] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, i);
         }
     }
 
-    public static void subtract(final int[] digits, final int digits_s, final int digits_length, final int[] other_digits, final int other_digits_s, final int other_digits_length) {
-        final int diff = digits_length - other_digits_length;
+    public static void subtract(final int[] integer, final int integer_s, final int integer_length, final int[] other_integer, final int other_integer_s, final int other_integer_length) {
+        final int diff = integer_length - other_integer_length;
         int borrow = 0;
-        final int other_offset = other_digits_s - diff;
-        for (int i = digits_length - 1; i >= diff; --i) {
-            final int index = digits_s + i;
-            final long difference = (digits[index] & 0xffffffffL) - (other_digits[other_offset + i] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(digits, difference, index);
+        final int other_offset = other_integer_s - diff;
+        for (int i = integer_length - 1; i >= diff; --i) {
+            final int index = integer_s + i;
+            final long difference = (integer[index] & 0xffffffffL) - (other_integer[other_offset + i] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, index);
         }
         for (int i = diff - 1; i >= 0; --i) {
-            final int index = digits_s + i;
-            final long difference = (digits[index] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(digits, difference, index);
+            final int index = integer_s + i;
+            final long difference = (integer[index] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, index);
         }
     }
 
@@ -280,38 +280,38 @@ public class Arithmetic {
         }
     }
 
-    public static void multiply(final int[] digits, final int[] a_digits, final int[] b_digits) {
-        for (int i = 1; i <= a_digits.length; ++i) {
+    public static void multiply(final int[] integer, final int[] a_integer, final int[] b_integer) {
+        for (int i = 1; i <= a_integer.length; ++i) {
             int carry = 0;
-            int digits_index = digits.length - i;
-            final int a_digits_index = a_digits.length - i;
-            int b_digits_index = b_digits.length - 1;
-            for (int j = 1; j <= b_digits.length; ++j) {
-                final long sum = (digits[digits_index] & 0xffffffffL) + (a_digits[a_digits_index] & 0xffffffffL) * (b_digits[b_digits_index] & 0xffffffffL) + (carry & 0xffffffffL);
-                carry = pass_carry(digits, sum, digits_index);
-                --digits_index;
-                --b_digits_index;
+            int integer_index = integer.length - i;
+            final int a_integer_index = a_integer.length - i;
+            int b_integer_index = b_integer.length - 1;
+            for (int j = 1; j <= b_integer.length; ++j) {
+                final long sum = (integer[integer_index] & 0xffffffffL) + (a_integer[a_integer_index] & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
+                carry = pass_carry(integer, sum, integer_index);
+                --integer_index;
+                --b_integer_index;
             }
             if (carry != 0) {
-                digits[digits_index] += carry;
+                integer[integer_index] += carry;
             }
         }
     }
 
-    public static void multiply(final int[] digits, final int digits_s, final int digits_length, final int[] a_digits, final int a_digits_s, final int a_digits_length, final int[] b_digits, final int b_digits_s, final int b_digits_length) {
-        for (int i = 1; i <= a_digits_length; ++i) {
+    public static void multiply(final int[] integer, final int integer_s, final int integer_length, final int[] a_integer, final int a_integer_s, final int a_integer_length, final int[] b_integer, final int b_integer_s, final int b_integer_length) {
+        for (int i = 1; i <= a_integer_length; ++i) {
             int carry = 0;
-            int digits_index = digits_s + digits_length - i;
-            final int a_digits_index = a_digits_s + a_digits_length - i;
-            int b_digits_index = b_digits_s + b_digits_length - 1;
-            for (int j = 1; j <= b_digits_length; ++j) {
-                final long sum = (digits[digits_index] & 0xffffffffL) + (a_digits[a_digits_index] & 0xffffffffL) * (b_digits[b_digits_index] & 0xffffffffL) + (carry & 0xffffffffL);
-                carry = pass_carry(digits, sum, digits_index);
-                --digits_index;
-                --b_digits_index;
+            int integer_index = integer_s + integer_length - i;
+            final int a_integer_index = a_integer_s + a_integer_length - i;
+            int b_integer_index = b_integer_s + b_integer_length - 1;
+            for (int j = 1; j <= b_integer_length; ++j) {
+                final long sum = (integer[integer_index] & 0xffffffffL) + (a_integer[a_integer_index] & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
+                carry = pass_carry(integer, sum, integer_index);
+                --integer_index;
+                --b_integer_index;
             }
             if (carry != 0) {
-                digits[digits_index] += carry;
+                integer[integer_index] += carry;
             }
         }
     }
@@ -322,10 +322,10 @@ public class Arithmetic {
     public static void divide(final byte[] digits, final int digits_s, final int digits_length, final byte[] a_digits, final int a_digits_s, final int a_digits_length, final byte[] b_digits, final int b_digits_s, final int b_digits_length) {
     }
 
-    public static void divide(final int[] digits, final int[] a_digits, final int[] b_digits) {
+    public static void divide(final int[] integer, final int[] a_integer, final int[] b_integer) {
     }
 
-    public static void divide(final int[] digits, final int digits_s, final int digits_length, final int[] a_digits, final int a_digits_s, final int a_digits_length, final int[] b_digits, final int b_digits_s, final int b_digits_length) {
+    public static void divide(final int[] integer, final int integer_s, final int integer_length, final int[] a_integer, final int a_integer_s, final int a_integer_length, final int[] b_integer, final int b_integer_s, final int b_integer_length) {
     }
 
     public static void mod(final byte[] digits, final byte[] a_digits, final byte[] b_digits) {
@@ -334,9 +334,9 @@ public class Arithmetic {
     public static void mod(final byte[] digits, final int digits_s, final int digits_length, final byte[] a_digits, final int a_digits_s, final int a_digits_length, final byte[] b_digits, final int b_digits_s, final int b_digits_length) {
     }
 
-    public static void mod(final int[] digits, final int[] a_digits, final int[] b_digits) {
+    public static void mod(final int[] integer, final int[] a_integer, final int[] b_integer) {
     }
 
-    public static void mod(final int[] digits, final int digits_s, final int digits_length, final int[] a_digits, final int a_digits_s, final int a_digits_length, final int[] b_digits, final int b_digits_s, final int b_digits_length) {
+    public static void mod(final int[] integer, final int integer_s, final int integer_length, final int[] a_integer, final int a_integer_s, final int a_integer_length, final int[] b_integer, final int b_integer_s, final int b_integer_length) {
     }
 }
