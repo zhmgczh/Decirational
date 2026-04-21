@@ -7,6 +7,8 @@ void main() {
         // LargeInteger integer = new LargeInteger(integer_str);
         DecimalInteger integer = new DecimalInteger(integer_str);
         DecimalInteger b = new DecimalInteger(b_str);
+        System.out.println(integer);
+        System.out.println(b);
         IO.println(integer.plus(b));
         IO.println(integer.minus(b));
         IO.println(integer.multiply(b));
