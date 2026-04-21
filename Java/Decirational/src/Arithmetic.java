@@ -115,10 +115,11 @@ public class Arithmetic {
     public static void add(final byte[] digits, final byte[] other_digits) {
         final int diff = digits.length - other_digits.length;
         byte carry = 0;
-        final int other_offset = -diff;
+        int other_index = other_digits.length - 1;
         for (int i = digits.length - 1; i >= diff; --i) {
-            final byte sum = (byte) (digits[i] + other_digits[other_offset + i] + carry);
+            final byte sum = (byte) (digits[i] + other_digits[other_index] + carry);
             carry = pass_carry(digits, sum, i);
+            --other_index;
         }
         for (int i = diff - 1; i >= 0; --i) {
             final byte sum = (byte) (digits[i] + carry);
@@ -127,28 +128,28 @@ public class Arithmetic {
     }
 
     public static void add(final byte[] digits, final int digits_s, final int digits_length, final byte[] other_digits, final int other_digits_s, final int other_digits_length) {
-        final int diff = digits_length - other_digits_length;
+        final int diff = digits_s + digits_length - other_digits_length;
         byte carry = 0;
-        final int other_offset = other_digits_s - diff;
-        for (int i = digits_length - 1; i >= diff; --i) {
-            final int index = digits_s + i;
-            final byte sum = (byte) (digits[index] + other_digits[other_offset + i] + carry);
-            carry = pass_carry(digits, sum, index);
+        int other_index = other_digits_s + other_digits_length - 1;
+        for (int i = digits_s + digits_length - 1; i >= diff; --i) {
+            final byte sum = (byte) (digits[i] + other_digits[other_index] + carry);
+            carry = pass_carry(digits, sum, i);
+            --other_index;
         }
-        for (int i = diff - 1; i >= 0; --i) {
-            final int index = digits_s + i;
-            final byte sum = (byte) (digits[index] + carry);
-            carry = pass_carry(digits, sum, index);
+        for (int i = diff - 1; i >= digits_s; --i) {
+            final byte sum = (byte) (digits[i] + carry);
+            carry = pass_carry(digits, sum, i);
         }
     }
 
     public static void add(final int[] integer, final int[] other_integer) {
         final int diff = integer.length - other_integer.length;
         int carry = 0;
-        final int other_offset = -diff;
+        int other_index = other_integer.length - 1;
         for (int i = integer.length - 1; i >= diff; --i) {
-            final long sum = (integer[i] & 0xffffffffL) + (other_integer[other_offset + i] & 0xffffffffL) + (long) carry;
+            final long sum = (integer[i] & 0xffffffffL) + (other_integer[other_index] & 0xffffffffL) + (long) carry;
             carry = pass_carry(integer, sum, i);
+            --other_index;
         }
         for (int i = diff - 1; i >= 0; --i) {
             final long sum = (integer[i] & 0xffffffffL) + (long) carry;
@@ -157,18 +158,17 @@ public class Arithmetic {
     }
 
     public static void add(final int[] integer, final int integer_s, final int integer_length, final int[] other_integer, final int other_integer_s, final int other_integer_length) {
-        final int diff = integer_length - other_integer_length;
+        final int diff = integer_s + integer_length - other_integer_length;
         int carry = 0;
-        final int other_offset = other_integer_s - diff;
-        for (int i = integer_length - 1; i >= diff; --i) {
-            final int index = integer_s + i;
-            final long sum = (integer[index] & 0xffffffffL) + (other_integer[other_offset + i] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(integer, sum, index);
+        int other_index = other_integer_s + other_integer_length - 1;
+        for (int i = integer_s + integer_length - 1; i >= diff; --i) {
+            final long sum = (integer[i] & 0xffffffffL) + (other_integer[other_index] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, i);
+            --other_index;
         }
-        for (int i = diff - 1; i >= 0; --i) {
-            final int index = integer_s + i;
-            final long sum = (integer[index] & 0xffffffffL) + (long) carry;
-            carry = pass_carry(integer, sum, index);
+        for (int i = diff - 1; i >= integer_s; --i) {
+            final long sum = (integer[i] & 0xffffffffL) + (long) carry;
+            carry = pass_carry(integer, sum, i);
         }
     }
 
@@ -187,10 +187,11 @@ public class Arithmetic {
     public static void subtract(final byte[] digits, final byte[] other_digits) {
         final int diff = digits.length - other_digits.length;
         byte borrow = 0;
-        final int other_offset = -diff;
+        int other_index = other_digits.length - 1;
         for (int i = digits.length - 1; i >= diff; --i) {
-            final byte sum = (byte) (digits[i] - other_digits[other_offset + i] - borrow);
+            final byte sum = (byte) (digits[i] - other_digits[other_index] - borrow);
             borrow = pass_borrow(digits, sum, i);
+            --other_index;
         }
         for (int i = diff - 1; i >= 0; --i) {
             final byte sum = (byte) (digits[i] - borrow);
@@ -199,28 +200,28 @@ public class Arithmetic {
     }
 
     public static void subtract(final byte[] digits, final int digits_s, final int digits_length, final byte[] other_digits, final int other_digits_s, final int other_digits_length) {
-        final int diff = digits_length - other_digits_length;
+        final int diff = digits_s + digits_length - other_digits_length;
         byte borrow = 0;
-        final int other_offset = other_digits_s - diff;
-        for (int i = digits_length - 1; i >= diff; --i) {
-            final int index = digits_s + i;
-            final byte sum = (byte) (digits[index] - other_digits[other_offset + i] - borrow);
-            borrow = pass_borrow(digits, sum, index);
+        int other_index = other_digits_s + other_digits_length - 1;
+        for (int i = digits_s + digits_length - 1; i >= diff; --i) {
+            final byte sum = (byte) (digits[i] - other_digits[other_index] - borrow);
+            borrow = pass_borrow(digits, sum, i);
+            --other_index;
         }
-        for (int i = diff - 1; i >= 0; --i) {
-            final int index = digits_s + i;
-            final byte sum = (byte) (digits[index] - borrow);
-            borrow = pass_borrow(digits, sum, index);
+        for (int i = diff - 1; i >= digits_s; --i) {
+            final byte sum = (byte) (digits[i] - borrow);
+            borrow = pass_borrow(digits, sum, i);
         }
     }
 
     public static void subtract(final int[] integer, final int[] other_integer) {
         final int diff = integer.length - other_integer.length;
         int borrow = 0;
-        final int other_offset = -diff;
+        int other_index = other_integer.length - 1;
         for (int i = integer.length - 1; i >= diff; --i) {
-            final long difference = (integer[i] & 0xffffffffL) - (other_integer[other_offset + i] & 0xffffffffL) - (long) borrow;
+            final long difference = (integer[i] & 0xffffffffL) - (other_integer[other_index] & 0xffffffffL) - (long) borrow;
             borrow = pass_borrow(integer, difference, i);
+            --other_index;
         }
         for (int i = diff - 1; i >= 0; --i) {
             final long difference = (integer[i] & 0xffffffffL) - (long) borrow;
@@ -229,18 +230,17 @@ public class Arithmetic {
     }
 
     public static void subtract(final int[] integer, final int integer_s, final int integer_length, final int[] other_integer, final int other_integer_s, final int other_integer_length) {
-        final int diff = integer_length - other_integer_length;
+        final int diff = integer_s + integer_length - other_integer_length;
         int borrow = 0;
-        final int other_offset = other_integer_s - diff;
-        for (int i = integer_length - 1; i >= diff; --i) {
-            final int index = integer_s + i;
-            final long difference = (integer[index] & 0xffffffffL) - (other_integer[other_offset + i] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(integer, difference, index);
+        int other_index = other_integer_s + other_integer_length - 1;
+        for (int i = integer_s + integer_length - 1; i >= diff; --i) {
+            final long difference = (integer[i] & 0xffffffffL) - (other_integer[other_index] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, i);
+            --other_index;
         }
-        for (int i = diff - 1; i >= 0; --i) {
-            final int index = integer_s + i;
-            final long difference = (integer[index] & 0xffffffffL) - (long) borrow;
-            borrow = pass_borrow(integer, difference, index);
+        for (int i = diff - 1; i >= integer_s; --i) {
+            final long difference = (integer[i] & 0xffffffffL) - (long) borrow;
+            borrow = pass_borrow(integer, difference, i);
         }
     }
 
@@ -249,12 +249,10 @@ public class Arithmetic {
             byte carry = 0;
             int digits_index = digits.length - i;
             final int a_digits_index = a_digits.length - i;
-            int b_digits_index = b_digits.length - 1;
-            for (int j = 1; j <= b_digits.length; ++j) {
+            for (int b_digits_index = b_digits.length - 1; b_digits_index >= 0; --b_digits_index) {
                 final byte sum = (byte) (digits[digits_index] + a_digits[a_digits_index] * b_digits[b_digits_index] + carry);
                 carry = pass_carry(digits, sum, digits_index);
                 --digits_index;
-                --b_digits_index;
             }
             if (carry != 0) {
                 digits[digits_index] += carry;
@@ -267,12 +265,10 @@ public class Arithmetic {
             byte carry = 0;
             int digits_index = digits_s + digits_length - i;
             final int a_digits_index = a_digits_s + a_digits_length - i;
-            int b_digits_index = b_digits_s + b_digits_length - 1;
-            for (int j = 1; j <= b_digits_length; ++j) {
+            for (int b_digits_index = b_digits_s + b_digits_length - 1; b_digits_index >= b_digits_s; --b_digits_index) {
                 final byte sum = (byte) (digits[digits_index] + a_digits[a_digits_index] * b_digits[b_digits_index] + carry);
                 carry = pass_carry(digits, sum, digits_index);
                 --digits_index;
-                --b_digits_index;
             }
             if (carry != 0) {
                 digits[digits_index] += carry;
@@ -285,12 +281,10 @@ public class Arithmetic {
             int carry = 0;
             int integer_index = integer.length - i;
             final int a_integer_index = a_integer.length - i;
-            int b_integer_index = b_integer.length - 1;
-            for (int j = 1; j <= b_integer.length; ++j) {
+            for (int b_integer_index = b_integer.length - 1; b_integer_index >= 0; --b_integer_index) {
                 final long sum = (integer[integer_index] & 0xffffffffL) + (a_integer[a_integer_index] & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
                 carry = pass_carry(integer, sum, integer_index);
                 --integer_index;
-                --b_integer_index;
             }
             if (carry != 0) {
                 integer[integer_index] += carry;
@@ -303,12 +297,10 @@ public class Arithmetic {
             int carry = 0;
             int integer_index = integer_s + integer_length - i;
             final int a_integer_index = a_integer_s + a_integer_length - i;
-            int b_integer_index = b_integer_s + b_integer_length - 1;
-            for (int j = 1; j <= b_integer_length; ++j) {
+            for (int b_integer_index = b_integer_s + b_integer_length - 1; b_integer_index >= b_integer_s; --b_integer_index) {
                 final long sum = (integer[integer_index] & 0xffffffffL) + (a_integer[a_integer_index] & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
                 carry = pass_carry(integer, sum, integer_index);
                 --integer_index;
-                --b_integer_index;
             }
             if (carry != 0) {
                 integer[integer_index] += carry;
