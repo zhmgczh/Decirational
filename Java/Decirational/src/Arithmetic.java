@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 public class Arithmetic {
     public static boolean is_digit(final char c) {
         return c >= '0' && c <= '9';
@@ -19,9 +21,10 @@ public class Arithmetic {
         return (char) (c + '0');
     }
 
-    private static int get_preceding_zeros(final byte[] digits) {
-        int cut_length = 0;
-        for (int i = 0; i < digits.length - 1; ++i) {
+    private static int get_preceding_zeros(final byte[] digits, final int digits_s, final int digits_length) {
+        int cut_length = digits_s;
+        final int ending_point = digits_s + digits_length - 1;
+        for (int i = digits_s; i <= ending_point; ++i) {
             if (0 != digits[i]) {
                 break;
             }
@@ -30,9 +33,10 @@ public class Arithmetic {
         return cut_length;
     }
 
-    private static int get_preceding_zeros(final int[] integer) {
-        int cut_length = 0;
-        for (int i = 0; i < integer.length - 1; ++i) {
+    private static int get_preceding_zeros(final int[] integer, final int integer_s, final int integer_length) {
+        int cut_length = integer_s;
+        final int ending_point = integer_s + integer_length - 1;
+        for (int i = integer_s; i <= ending_point; ++i) {
             if (0 != integer[i]) {
                 break;
             }
@@ -42,7 +46,7 @@ public class Arithmetic {
     }
 
     public static byte[] optimize(final byte[] digits) {
-        final int cut_length = get_preceding_zeros(digits);
+        final int cut_length = get_preceding_zeros(digits, 0, digits.length);
         byte[] result = digits;
         if (0 != cut_length) {
             result = new byte[digits.length - cut_length];
@@ -52,7 +56,7 @@ public class Arithmetic {
     }
 
     public static int[] optimize(final int[] integer) {
-        final int cut_length = get_preceding_zeros(integer);
+        final int cut_length = get_preceding_zeros(integer, 0, integer.length);
         int[] result = integer;
         if (0 != cut_length) {
             result = new int[integer.length - cut_length];
@@ -308,16 +312,274 @@ public class Arithmetic {
         }
     }
 
+    public static void multiply(final byte[] digits, final byte a, final byte[] b_digits) {
+        byte carry = 0;
+        int digits_index = digits.length - 1;
+        for (int b_digits_index = b_digits.length - 1; b_digits_index >= 0; --b_digits_index) {
+            final byte sum = (byte) (digits[digits_index] + a * b_digits[b_digits_index] + carry);
+            carry = pass_carry(digits, sum, digits_index);
+            --digits_index;
+        }
+        if (carry != 0) {
+            digits[digits_index] += carry;
+        }
+    }
+
+    public static void multiply(final byte[] digits, final int digits_s, final int digits_length, final byte a, final byte[] b_digits, final int b_digits_s, final int b_digits_length) {
+        byte carry = 0;
+        int digits_index = digits_s + digits_length - 1;
+        for (int b_digits_index = b_digits_s + b_digits_length - 1; b_digits_index >= b_digits_s; --b_digits_index) {
+            final byte sum = (byte) (digits[digits_index] + a * b_digits[b_digits_index] + carry);
+            carry = pass_carry(digits, sum, digits_index);
+            --digits_index;
+        }
+        if (carry != 0) {
+            digits[digits_index] += carry;
+        }
+    }
+
+    public static void multiply(final int[] integer, final int a, final int[] b_integer) {
+        int carry = 0;
+        int integer_index = integer.length - 1;
+        for (int b_integer_index = b_integer.length - 1; b_integer_index >= 0; --b_integer_index) {
+            final long sum = (integer[integer_index] & 0xffffffffL) + (a & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
+            carry = pass_carry(integer, sum, integer_index);
+            --integer_index;
+        }
+        if (carry != 0) {
+            integer[integer_index] += carry;
+        }
+    }
+
+    public static void multiply(final int[] integer, final int integer_s, final int integer_length, final int a, final int[] b_integer, final int b_integer_s, final int b_integer_length) {
+        int carry = 0;
+        int integer_index = integer_s + integer_length - 1;
+        for (int b_integer_index = b_integer_s + b_integer_length - 1; b_integer_index >= b_integer_s; --b_integer_index) {
+            final long sum = (integer[integer_index] & 0xffffffffL) + (a & 0xffffffffL) * (b_integer[b_integer_index] & 0xffffffffL) + (carry & 0xffffffffL);
+            carry = pass_carry(integer, sum, integer_index);
+            --integer_index;
+        }
+        if (carry != 0) {
+            integer[integer_index] += carry;
+        }
+    }
+
+    public static int compare(final byte[] a, final int a_s, final int a_length, final byte[] b, final int b_s, final int b_length) {
+        final int new_a_s = get_preceding_zeros(a, a_s, a_length);
+        final int new_b_s = get_preceding_zeros(b, b_s, b_length);
+        final int new_a_length = a_length - new_a_s + a_s;
+        final int new_b_length = b_length - new_b_s + b_s;
+        if (new_a_length > new_b_length) {
+            return 1;
+        } else if (new_a_length < new_b_length) {
+            return -1;
+        }
+        final int new_a_e = new_a_s + new_a_length;
+        int b_index = new_b_s;
+        for (int i = new_a_s; i < new_a_e; ++i) {
+            if (a[i] > b[b_index]) {
+                return 1;
+            } else if (a[i] < b[b_index]) {
+                return -1;
+            }
+            ++b_index;
+        }
+        return 0;
+    }
+
+    public static int compare(final byte[] a, final byte[] b) {
+        return compare(a, 0, a.length, b, 0, b.length);
+    }
+
+    public static int compare(final int[] a, final int a_s, final int a_length, final int[] b, final int b_s, final int b_length) {
+        final int new_a_s = get_preceding_zeros(a, a_s, a_length);
+        final int new_b_s = get_preceding_zeros(b, b_s, b_length);
+        final int new_a_length = a_length - new_a_s + a_s;
+        final int new_b_length = b_length - new_b_s + b_s;
+        if (new_a_length > new_b_length) {
+            return 1;
+        } else if (new_a_length < new_b_length) {
+            return -1;
+        }
+        final int new_a_e = new_a_s + new_a_length;
+        int b_index = new_b_s;
+        for (int i = new_a_s; i < new_a_e; ++i) {
+            if ((a[i] & 0xffffffffL) > (b[b_index] & 0xffffffffL)) {
+                return 1;
+            } else if ((a[i] & 0xffffffffL) < (b[b_index] & 0xffffffffL)) {
+                return -1;
+            }
+            ++b_index;
+        }
+        return 0;
+    }
+
+    public static int compare(final int[] a, final int[] b) {
+        return compare(a, 0, a.length, b, 0, b.length);
+    }
+
+    private static int find_right_boundary(final byte[] dividend, final int dividend_s, final byte[] divisor, final int divisor_s, final int divisor_length) {
+        final int divisor_e = divisor_s + divisor_length;
+        final int dividend_bound = dividend_s + divisor_length - 1;
+        int dividend_index = dividend_s;
+        for (int i = divisor_s; i < divisor_e; ++i) {
+            if (dividend_index >= dividend.length) {
+                return dividend_bound + 1;
+            }
+            if (dividend[dividend_index] > divisor[i]) {
+                return dividend_bound;
+            } else if (dividend[dividend_index] < divisor[i]) {
+                return dividend_bound + 1;
+            }
+            ++dividend_index;
+        }
+        return dividend_bound;
+    }
+
+    private static int find_right_boundary(final int[] dividend, final int dividend_s, final int[] divisor, final int divisor_s, final int divisor_length) {
+        final int divisor_e = divisor_s + divisor_length;
+        final int dividend_bound = dividend_s + divisor_length - 1;
+        int dividend_index = dividend_s;
+        for (int i = divisor_s; i < divisor_e; ++i) {
+            if (dividend_index >= dividend.length) {
+                return dividend_bound + 1;
+            }
+            if ((dividend[dividend_index] & 0xffffffffL) > (divisor[i] & 0xffffffffL)) {
+                return dividend_bound;
+            } else if ((dividend[dividend_index] & 0xffffffffL) < (divisor[i] & 0xffffffffL)) {
+                return dividend_bound + 1;
+            }
+            ++dividend_index;
+        }
+        return dividend_bound;
+    }
+
+    private static byte multiplier(final byte[] temp, final int temp_s, final int temp_length, final byte[] dividend, final int dividend_s, final int dividend_length, final byte[] divisor, final int divisor_s, final int divisor_length) {
+        byte left = 0;
+        byte right = 9;
+        byte mid = (byte) ((left + right + 1) >> 1);
+        final int temp_e = temp_s + temp_length;
+        while (left < right) {
+            mid = (byte) ((left + right + 1) >> 1);
+            Arrays.fill(temp, temp_s, temp_e, (byte) 0);
+            multiply(temp, temp_s, temp_length, mid, divisor, divisor_s, divisor_length);
+            int compare_value = compare(temp, temp_s, temp_length, dividend, dividend_s, dividend_length);
+            if (compare_value <= 0) {
+                left = mid;
+            } else {
+                right = (byte) (mid - 1);
+            }
+        }
+        if (mid != left) {
+            Arrays.fill(temp, temp_s, temp_e, (byte) 0);
+            multiply(temp, temp_s, temp_length, left, divisor, divisor_s, divisor_length);
+        }
+        return left;
+    }
+
+    private static int multiplier(final int[] temp, final int temp_s, final int temp_length, final int[] dividend, final int dividend_s, final int dividend_length, final int[] divisor, final int divisor_s, final int divisor_length) {
+        int left = 0;
+        int right = 0xffffffff;
+        int mid = (int) (((left & 0xffffffffL) + (right & 0xffffffffL) + 1L) >> 1);
+        final int temp_e = temp_s + temp_length;
+        while ((left & 0xffffffffL) < (right & 0xffffffffL)) {
+            mid = (int) (((left & 0xffffffffL) + (right & 0xffffffffL) + 1L) >> 1);
+            Arrays.fill(temp, temp_s, temp_e, 0);
+            multiply(temp, temp_s, temp_length, mid, divisor, divisor_s, divisor_length);
+            int compare_value = compare(temp, temp_s, temp_length, dividend, dividend_s, dividend_length);
+            if (compare_value <= 0) {
+                left = mid;
+            } else {
+                right = mid - 1;
+            }
+        }
+        if (mid != left) {
+            Arrays.fill(temp, temp_s, temp_e, (int) 0);
+            multiply(temp, temp_s, temp_length, left, divisor, divisor_s, divisor_length);
+        }
+        return left;
+    }
+
     public static void divide(final byte[] digits, final byte[] a_digits, final byte[] b_digits) {
+        final int new_b_digits_s = get_preceding_zeros(b_digits, 0, b_digits.length);
+        final int new_b_digits_length = b_digits.length - new_b_digits_s;
+        final byte[] temp = new byte[new_b_digits_length + 1];
+        final byte[] remaining_dividend = Arrays.copyOf(a_digits, a_digits.length);
+        final int diff = digits.length - remaining_dividend.length;
+        int left_boundary = get_preceding_zeros(remaining_dividend, 0, remaining_dividend.length);
+        int right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_digits, new_b_digits_s, new_b_digits_length);
+        while (right_boundary < remaining_dividend.length) {
+            final int dividend_length = right_boundary - left_boundary + 1;
+            digits[diff + right_boundary] = multiplier(temp, 0, temp.length, remaining_dividend, left_boundary, dividend_length, b_digits, new_b_digits_s, new_b_digits_length);
+            subtract(remaining_dividend, left_boundary, dividend_length, temp, 0 == temp[0] ? 1 : 0, 0 == temp[0] ? temp.length - 1 : temp.length);
+            left_boundary = get_preceding_zeros(remaining_dividend, left_boundary, remaining_dividend.length - left_boundary);
+            if (left_boundary >= remaining_dividend.length) {
+                break;
+            }
+            right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_digits, new_b_digits_s, new_b_digits_length);
+        }
     }
 
     public static void divide(final byte[] digits, final int digits_s, final int digits_length, final byte[] a_digits, final int a_digits_s, final int a_digits_length, final byte[] b_digits, final int b_digits_s, final int b_digits_length) {
+        final int new_b_digits_s = get_preceding_zeros(b_digits, b_digits_s, b_digits_length);
+        final int new_b_digits_length = b_digits_length - new_b_digits_s + b_digits_s;
+        final byte[] temp = new byte[new_b_digits_length + 1];
+        final byte[] remaining_dividend = new byte[a_digits_length];
+        System.arraycopy(a_digits, a_digits_s, remaining_dividend, 0, remaining_dividend.length);
+        final int diff = digits_length - remaining_dividend.length + digits_s;
+        int left_boundary = get_preceding_zeros(remaining_dividend, 0, remaining_dividend.length);
+        int right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_digits, new_b_digits_s, new_b_digits_length);
+        while (right_boundary < remaining_dividend.length) {
+            final int dividend_length = right_boundary - left_boundary + 1;
+            digits[diff + right_boundary] = multiplier(temp, 0, temp.length, remaining_dividend, left_boundary, dividend_length, b_digits, new_b_digits_s, new_b_digits_length);
+            subtract(remaining_dividend, left_boundary, dividend_length, temp, 0 == temp[0] ? 1 : 0, 0 == temp[0] ? temp.length - 1 : temp.length);
+            left_boundary = get_preceding_zeros(remaining_dividend, left_boundary, remaining_dividend.length - left_boundary);
+            if (left_boundary >= remaining_dividend.length) {
+                break;
+            }
+            right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_digits, new_b_digits_s, new_b_digits_length);
+        }
     }
 
     public static void divide(final int[] integer, final int[] a_integer, final int[] b_integer) {
+        final int new_b_integer_s = get_preceding_zeros(b_integer, 0, b_integer.length);
+        final int new_b_integer_length = b_integer.length - new_b_integer_s;
+        final int[] temp = new int[new_b_integer_length + 1];
+        final int[] remaining_dividend = Arrays.copyOf(a_integer, a_integer.length);
+        final int diff = integer.length - remaining_dividend.length;
+        int left_boundary = get_preceding_zeros(remaining_dividend, 0, remaining_dividend.length);
+        int right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_integer, new_b_integer_s, new_b_integer_length);
+        while (right_boundary < remaining_dividend.length) {
+            final int dividend_length = right_boundary - left_boundary + 1;
+            integer[diff + right_boundary] = multiplier(temp, 0, temp.length, remaining_dividend, left_boundary, dividend_length, b_integer, new_b_integer_s, new_b_integer_length);
+            subtract(remaining_dividend, left_boundary, dividend_length, temp, 0 == temp[0] ? 1 : 0, 0 == temp[0] ? temp.length - 1 : temp.length);
+            left_boundary = get_preceding_zeros(remaining_dividend, left_boundary, remaining_dividend.length - left_boundary);
+            if (left_boundary >= remaining_dividend.length) {
+                break;
+            }
+            right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_integer, new_b_integer_s, new_b_integer_length);
+        }
     }
 
     public static void divide(final int[] integer, final int integer_s, final int integer_length, final int[] a_integer, final int a_integer_s, final int a_integer_length, final int[] b_integer, final int b_integer_s, final int b_integer_length) {
+        final int new_b_integer_s = get_preceding_zeros(b_integer, b_integer_s, b_integer_length);
+        final int new_b_integer_length = b_integer_length - new_b_integer_s + b_integer_s;
+        final int[] temp = new int[new_b_integer_length + 1];
+        final int[] remaining_dividend = new int[a_integer_length];
+        System.arraycopy(a_integer, a_integer_s, remaining_dividend, 0, remaining_dividend.length);
+        final int diff = integer_length - remaining_dividend.length + integer_s;
+        int left_boundary = get_preceding_zeros(remaining_dividend, 0, remaining_dividend.length);
+        int right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_integer, new_b_integer_s, new_b_integer_length);
+        while (right_boundary < remaining_dividend.length) {
+            final int dividend_length = right_boundary - left_boundary + 1;
+            integer[diff + right_boundary] = multiplier(temp, 0, temp.length, remaining_dividend, left_boundary, dividend_length, b_integer, new_b_integer_s, new_b_integer_length);
+            subtract(remaining_dividend, left_boundary, dividend_length, temp, 0 == temp[0] ? 1 : 0, 0 == temp[0] ? temp.length - 1 : temp.length);
+            left_boundary = get_preceding_zeros(remaining_dividend, left_boundary, remaining_dividend.length - left_boundary);
+            if (left_boundary >= remaining_dividend.length) {
+                break;
+            }
+            right_boundary = find_right_boundary(remaining_dividend, left_boundary, b_integer, new_b_integer_s, new_b_integer_length);
+        }
     }
 
     public static void mod(final byte[] digits, final byte[] a_digits, final byte[] b_digits) {

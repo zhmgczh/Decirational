@@ -111,9 +111,9 @@ public class LargeInteger implements Comparable<LargeInteger> {
             return negative ? -1 : 1;
         }
         for (int i = 0; i < integer.length; ++i) {
-            if (integer[i] < other.integer[i]) {
+            if ((integer[i] & 0xffffffffL) < (other.integer[i] & 0xffffffffL)) {
                 return negative ? 1 : -1;
-            } else if (integer[i] > other.integer[i]) {
+            } else if ((integer[i] & 0xffffffffL) > (other.integer[i] & 0xffffffffL)) {
                 return negative ? -1 : 1;
             }
         }
