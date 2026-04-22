@@ -494,7 +494,7 @@ public class Arithmetic {
             }
         }
         if (mid != left) {
-            Arrays.fill(temp, temp_s, temp_e, (int) 0);
+            Arrays.fill(temp, temp_s, temp_e, 0);
             multiply(temp, temp_s, temp_length, left, divisor, divisor_s, divisor_length);
         }
         return left;
