@@ -49,8 +49,9 @@ public class Arithmetic {
         final int cut_length = get_preceding_zeros(digits, 0, digits.length);
         byte[] result = digits;
         if (0 != cut_length) {
-            result = new byte[digits.length - cut_length];
-            System.arraycopy(digits, cut_length, result, 0, result.length);
+            final int result_length = digits.length - cut_length;
+            result = new byte[Math.max(1, result_length)];
+            System.arraycopy(digits, cut_length, result, 0, result_length);
         }
         return result;
     }
@@ -59,8 +60,9 @@ public class Arithmetic {
         final int cut_length = get_preceding_zeros(integer, 0, integer.length);
         int[] result = integer;
         if (0 != cut_length) {
-            result = new int[integer.length - cut_length];
-            System.arraycopy(integer, cut_length, result, 0, result.length);
+            final int result_length = integer.length - cut_length;
+            result = new int[Math.max(1, result_length)];
+            System.arraycopy(integer, cut_length, result, 0, result_length);
         }
         return result;
     }
