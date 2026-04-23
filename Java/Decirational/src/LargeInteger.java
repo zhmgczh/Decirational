@@ -1,33 +1,10 @@
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class LargeInteger implements Comparable<LargeInteger> {
     private final boolean negative;
     private final int[] integer;
     public static final LargeInteger ZERO = new LargeInteger();
-    public static final LargeInteger[] numbers;
-
-    static {
-        numbers = new LargeInteger[1 << 8];
-        for (int i = 0; i < 1 << 8; ++i) {
-            numbers[i] = new LargeInteger(i);
-        }
-    }
-
-    private static long[] ints_to_longs(final int[] ints) {
-        final long[] longs = new long[ints.length];
-        for (int i = 0; i < longs.length; ++i) {
-            longs[i] = ints[i] & 0xffffffffL;
-        }
-        return longs;
-    }
-
-    private static int[] longs_to_ints(final long[] longs) {
-        final int[] ints = new int[longs.length];
-        for (int i = 0; i < ints.length; ++i) {
-            ints[i] = (int) longs[i];
-        }
-        return ints;
-    }
 
     public LargeInteger(final LargeInteger large_integer) {
         negative = large_integer.negative;
@@ -39,7 +16,7 @@ public class LargeInteger implements Comparable<LargeInteger> {
         integer = new int[1];
     }
 
-    private LargeInteger(final int[] integer, final boolean negative) {
+    public LargeInteger(final int[] integer, final boolean negative) {
         this.integer = Arithmetic.optimize(integer);
         this.negative = Arithmetic.optimize(negative, this.integer);
     }
@@ -61,12 +38,11 @@ public class LargeInteger implements Comparable<LargeInteger> {
     }
 
     public LargeInteger(final long number) {
-        final long b = Arithmetic.reverse_negative(number);
-        final int[] integer = new int[2];
-        integer[0] = (int) (number & 0xffffffffL);
-        integer[1] = (int) (number >>> 32);
-        this.integer = Arithmetic.optimize(integer);
-        this.negative = b != number;
+        this(Long.toString(number));
+    }
+
+    public LargeInteger(final DecimalInteger decimal_integer) {
+        this(decimal_integer.to_large_integer());
     }
 
     public LargeInteger(final String number) {
@@ -75,7 +51,11 @@ public class LargeInteger implements Comparable<LargeInteger> {
     }
 
     public String toString() {
-        return null;
+        return to_decimal_integer().toString();
+    }
+
+    public DecimalInteger to_decimal_integer() {
+
     }
 
     public boolean is_zero() {
@@ -170,21 +150,6 @@ public class LargeInteger implements Comparable<LargeInteger> {
         return new LargeInteger(integer, this.negative != other.negative);
     }
 
-    private int upper_multiplier(final LargeInteger dividend, final LargeInteger divisor) {
-        int left = 0;
-        int right = (1 << 8) - 1;
-        while (left < right) {
-            final int mid = (left + right + 1) >> 1;
-            final LargeInteger multiplier = numbers[mid];
-            if (divisor.multiply(multiplier).compareTo(dividend) <= 0) {
-                left = mid;
-            } else {
-                right = mid - 1;
-            }
-        }
-        return left;
-    }
-
     public LargeInteger multiply_4294967296(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Multiplication times cannot be negative!");
@@ -218,18 +183,46 @@ public class LargeInteger implements Comparable<LargeInteger> {
             throw new ArithmeticException("Cannot divide by zero!");
         }
         final int[] integer = new int[this.integer.length];
-        LargeInteger remaining_dividend = abs();
-        LargeInteger divisor = other.abs().multiply_4294967296(integer.length);
-        for (int i = 0; i < integer.length; ++i) {
-            divisor = divisor.divide_by_4294967296();
-            final int multiplier = upper_multiplier(remaining_dividend, divisor);
-            integer[i] = multiplier;
-            remaining_dividend = remaining_dividend.minus(divisor.multiply(numbers[multiplier]));
-        }
+        Arithmetic.divide(integer, this.integer, other.integer);
         return new LargeInteger(integer, this.negative != other.negative);
     }
 
-    public LargeInteger mod(final LargeInteger other) {
-        return minus(divide_by(other).multiply(other));
+    public LargeInteger modulo(final LargeInteger other) {
+        if (other.is_zero()) {
+            throw new ArithmeticException("Cannot divide by zero!");
+        }
+        final int[] integer = new int[other.integer.length];
+        Arithmetic.modulo(integer, this.integer, other.integer);
+        return new LargeInteger(integer, this.negative != other.negative);
+    }
+
+    public LargeInteger[] divide_by_and_modulo(final LargeInteger other) {
+        if (other.is_zero()) {
+            throw new ArithmeticException("Cannot divide by zero!");
+        }
+        final int[] quotient_integer = new int[this.integer.length];
+        final int[] remainder_integer = new int[other.integer.length];
+        Arithmetic.divide_and_modulo(quotient_integer, remainder_integer, this.integer, other.integer);
+        final LargeInteger quotient = new LargeInteger(quotient_integer, this.negative != other.negative);
+        final LargeInteger remainder = new LargeInteger(remainder_integer, this.negative != other.negative);
+        return new LargeInteger[]{quotient, remainder};
+    }
+
+    public static void main(final String[] args) {
+        final Scanner input = new Scanner(System.in);
+        while (input.hasNextLine()) {
+            final String a_str = input.nextLine().trim();
+            final String b_str = input.nextLine().trim();
+            final LargeInteger a = new LargeInteger(a_str);
+            final LargeInteger b = new LargeInteger(b_str);
+            System.out.println(a);
+            System.out.println(b);
+            System.out.println(a.compareTo(b));
+            System.out.println(a.plus(b));
+            System.out.println(a.minus(b));
+            System.out.println(a.multiply(b));
+            System.out.println(a.divide_by(b));
+            System.out.println(a.modulo(b));
+        }
     }
 }

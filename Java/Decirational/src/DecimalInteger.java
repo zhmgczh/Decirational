@@ -14,7 +14,6 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
     public static final DecimalInteger SEVEN = new DecimalInteger("7");
     public static final DecimalInteger EIGHT = new DecimalInteger("8");
     public static final DecimalInteger NINE = new DecimalInteger("9");
-    public static final DecimalInteger[] numbers = new DecimalInteger[]{ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE};
 
     public DecimalInteger(final DecimalInteger decimal_integer) {
         negative = decimal_integer.negative;
@@ -26,7 +25,7 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
         digits = new byte[1];
     }
 
-    private DecimalInteger(final byte[] digits, final boolean negative) {
+    public DecimalInteger(final byte[] digits, final boolean negative) {
         this.digits = Arithmetic.optimize(digits);
         this.negative = Arithmetic.optimize(negative, this.digits);
     }
@@ -45,6 +44,10 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
 
     public DecimalInteger(final long number) {
         this(Long.toString(number));
+    }
+
+    public DecimalInteger(final LargeInteger large_integer) {
+        this(large_integer.to_decimal_integer());
     }
 
     public DecimalInteger(String number) {
@@ -78,6 +81,10 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
             sb.append(Arithmetic.to_char(digit));
         }
         return sb.toString();
+    }
+
+    public LargeInteger to_large_integer() {
+
     }
 
     public boolean is_zero() {
@@ -166,21 +173,6 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger(digits, this.negative != other.negative);
     }
 
-    private byte upper_multiplier(final DecimalInteger dividend, final DecimalInteger divisor) {
-        int left = 0;
-        int right = 9;
-        while (left < right) {
-            final int mid = (left + right + 1) >> 1;
-            final DecimalInteger multiplier = numbers[mid];
-            if (divisor.multiply(multiplier).compareTo(dividend) <= 0) {
-                left = mid;
-            } else {
-                right = mid - 1;
-            }
-        }
-        return (byte) left;
-    }
-
     public DecimalInteger multiply_10(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Multiplication times cannot be negative!");
@@ -214,28 +206,38 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
             throw new ArithmeticException("Cannot divide by zero!");
         }
         final byte[] digits = new byte[this.digits.length];
-        DecimalInteger remaining_dividend = abs();
-        DecimalInteger divisor = other.abs().multiply_10(digits.length);
-        for (int i = 0; i < digits.length; ++i) {
-            divisor = divisor.divide_by_10();
-            final byte multiplier = upper_multiplier(remaining_dividend, divisor);
-            digits[i] = multiplier;
-            remaining_dividend = remaining_dividend.minus(divisor.multiply(numbers[multiplier]));
-        }
+        Arithmetic.divide(digits, this.digits, other.digits);
         return new DecimalInteger(digits, this.negative != other.negative);
     }
 
-    public DecimalInteger mod(final DecimalInteger other) {
-        return minus(divide_by(other).multiply(other));
+    public DecimalInteger modulo(final DecimalInteger other) {
+        if (other.is_zero()) {
+            throw new ArithmeticException("Cannot divide by zero!");
+        }
+        final byte[] digits = new byte[other.digits.length];
+        Arithmetic.modulo(digits, this.digits, other.digits);
+        return new DecimalInteger(digits, this.negative != other.negative);
+    }
+
+    public DecimalInteger[] divide_by_and_modulo(final DecimalInteger other) {
+        if (other.is_zero()) {
+            throw new ArithmeticException("Cannot divide by zero!");
+        }
+        final byte[] quotient_digits = new byte[this.digits.length];
+        final byte[] remainder_digits = new byte[other.digits.length];
+        Arithmetic.divide_and_modulo(quotient_digits, remainder_digits, this.digits, other.digits);
+        final DecimalInteger quotient = new DecimalInteger(quotient_digits, this.negative != other.negative);
+        final DecimalInteger remainder = new DecimalInteger(remainder_digits, this.negative != other.negative);
+        return new DecimalInteger[]{quotient, remainder};
     }
 
     public static void main(final String[] args) {
         final Scanner input = new Scanner(System.in);
         while (input.hasNextLine()) {
-            String a_str = input.nextLine().trim();
-            String b_str = input.nextLine().trim();
-            DecimalInteger a = new DecimalInteger(a_str);
-            DecimalInteger b = new DecimalInteger(b_str);
+            final String a_str = input.nextLine().trim();
+            final String b_str = input.nextLine().trim();
+            final DecimalInteger a = new DecimalInteger(a_str);
+            final DecimalInteger b = new DecimalInteger(b_str);
             System.out.println(a);
             System.out.println(b);
             System.out.println(a.compareTo(b));
@@ -243,7 +245,7 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
             System.out.println(a.minus(b));
             System.out.println(a.multiply(b));
             System.out.println(a.divide_by(b));
-            System.out.println(a.mod(b));
+            System.out.println(a.modulo(b));
         }
     }
 }
