@@ -1,6 +1,6 @@
 import java.util.Arrays;
 
-public class Arithmetic {
+public final class Arithmetic {
     public static final double tight_to_decimal_length_ratio = 32 * Math.log10(2);
 
     public static final double decimal_to_tight_length_ratio = Math.log(10) / (32 * Math.log(2));
