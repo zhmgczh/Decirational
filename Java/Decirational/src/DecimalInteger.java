@@ -84,11 +84,14 @@ public class DecimalInteger implements Comparable<DecimalInteger> {
     }
 
     public LargeInteger to_large_integer() {
-
+        int tight_length = (int) (digits.length * Arithmetic.decimal_to_tight_length_ratio + 1);
+        int[] integer = new int[tight_length];
+        Arithmetic.convert_decimal_to_tight(integer, digits);
+        return new LargeInteger(integer, negative);
     }
 
     public boolean is_zero() {
-        return 1 == digits.length && digits[0] == 0;
+        return 1 == digits.length && 0 == digits[0];
     }
 
     public boolean is_positive() {

@@ -1,6 +1,10 @@
 import java.util.Arrays;
 
 public class Arithmetic {
+    public static final double tight_to_decimal_length_ratio = 32 * Math.log10(2);
+
+    public static final double decimal_to_tight_length_ratio = Math.log(10) / (32 * Math.log(2));
+
     public static boolean is_digit(final char c) {
         return c >= '0' && c <= '9';
     }
@@ -459,15 +463,21 @@ public class Arithmetic {
         byte right = 9;
         byte mid = (byte) ((left + right + 1) >> 1);
         final int temp_e = temp_s + temp_length;
+        OUTER:
         while (left < right) {
             mid = (byte) ((left + right + 1) >> 1);
             Arrays.fill(temp, temp_s, temp_e, (byte) 0);
             multiply(temp, temp_s, temp_length, mid, divisor, divisor_s, divisor_length);
             int compare_value = compare(temp, temp_s, temp_length, dividend, dividend_s, dividend_length);
-            if (compare_value <= 0) {
-                left = mid;
-            } else {
-                right = (byte) (mid - 1);
+            switch (compare_value) {
+                case 0:
+                    left = mid;
+                    break OUTER;
+                case -1:
+                    left = mid;
+                    break;
+                case 1:
+                    right = (byte) (mid - 1);
             }
         }
         if (mid != left) {
@@ -482,15 +492,21 @@ public class Arithmetic {
         int right = 0xffffffff;
         int mid = (int) (((left & 0xffffffffL) + (right & 0xffffffffL) + 1L) >> 1);
         final int temp_e = temp_s + temp_length;
+        OUTER:
         while ((left & 0xffffffffL) < (right & 0xffffffffL)) {
             mid = (int) (((left & 0xffffffffL) + (right & 0xffffffffL) + 1L) >> 1);
             Arrays.fill(temp, temp_s, temp_e, 0);
             multiply(temp, temp_s, temp_length, mid, divisor, divisor_s, divisor_length);
             int compare_value = compare(temp, temp_s, temp_length, dividend, dividend_s, dividend_length);
-            if (compare_value <= 0) {
-                left = mid;
-            } else {
-                right = mid - 1;
+            switch (compare_value) {
+                case 0:
+                    left = mid;
+                    break OUTER;
+                case -1:
+                    left = mid;
+                    break;
+                case 1:
+                    right = mid - 1;
             }
         }
         if (mid != left) {

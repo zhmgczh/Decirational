@@ -46,8 +46,7 @@ public class LargeInteger implements Comparable<LargeInteger> {
     }
 
     public LargeInteger(final String number) {
-        this.integer = Arithmetic.optimize(new int[1]);
-        this.negative = Arithmetic.optimize(false, this.integer);
+        this(new DecimalInteger(number));
     }
 
     public String toString() {
@@ -55,11 +54,14 @@ public class LargeInteger implements Comparable<LargeInteger> {
     }
 
     public DecimalInteger to_decimal_integer() {
-
+        int decimal_length = (int) (integer.length * Arithmetic.tight_to_decimal_length_ratio + 1);
+        byte[] digits = new byte[decimal_length];
+        Arithmetic.convert_tight_to_decimal(digits, integer);
+        return new DecimalInteger(digits, negative);
     }
 
     public boolean is_zero() {
-        return 1 == integer.length && integer[0] == 0;
+        return 1 == integer.length && 0 == integer[0];
     }
 
     public boolean is_positive() {
