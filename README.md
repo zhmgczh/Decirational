@@ -16,7 +16,7 @@ To ensure maximum interoperability and performance flexibility, this project pro
 ## 📦 Implementations
 
 ### 🦀 Rust
-The Rust implementation leverages memory-safe, zero-cost abstractions. It excels in system-level task integration and high-performance utility development where predictable latency and strict memory management are critical.
+<!--The Rust implementation leverages memory-safe, zero-cost abstractions. It excels in system-level task integration and high-performance utility development where predictable latency and strict memory management are critical.
 
 ```rust
 use decirational::DecimalRational;
@@ -27,10 +27,10 @@ fn main() {
     let result = a + b;
     println!("Result: {}", result);
 }
-```
+```-->To be developed.
 
 ### 🐹 Go
-The Go implementation is heavily optimized for concurrent workloads, providing excellent performance for networked microservices and goroutine-based workflows. It provides a clean, idiomatic API wrapping highly optimized arbitrary-precision logic.
+<!--The Go implementation is heavily optimized for concurrent workloads, providing excellent performance for networked microservices and goroutine-based workflows. It provides a clean, idiomatic API wrapping highly optimized arbitrary-precision logic.
 
 ```go
 package main
@@ -46,10 +46,10 @@ func main() {
     result := a.Add(b)
     fmt.Printf("Result: %s\n", result.String())
 }
-```
+```-->To be developed.
 
 ### ☕ Java
-The Java implementation offers seamless integration into enterprise applications with highly tuned JVM memory allocation strategies.
+<!--The Java implementation offers seamless integration into enterprise applications with highly tuned JVM memory allocation strategies.
 
 ```java
 import com.decirational.DecimalRational;
@@ -62,7 +62,7 @@ public class Main {
         System.out.println("Result: " + result.toString());
     }
 }
-```
+```-->Developing.
 
 ## ⚙️ Concurrency & Architecture
 
