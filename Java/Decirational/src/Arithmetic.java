@@ -804,6 +804,26 @@ public final class Arithmetic {
         }
     }
 
+    public static void convert_tight_to_decimal(final byte[] digits, final int digits_s, final int digits_length, final int[] integer, final int integer_s, final int integer_length) {
+        final int[] quotient_cache = new int[integer_length];
+        System.arraycopy(integer, integer_s, quotient_cache, 0, integer_length);
+        final int[] temp = new int[quotient_cache.length];
+        final int[] remainder_cache = new int[decimal_base.length];
+        int digits_index = digits_s + digits_length - 1;
+        int left_boundary = get_preceding_zeros(quotient_cache, 0, quotient_cache.length);
+        int remaining_length = quotient_cache.length - left_boundary;
+        while (get_preceding_zeros(quotient_cache, left_boundary, remaining_length) < quotient_cache.length) {
+            Arrays.fill(temp, left_boundary, temp.length, 0);
+            remainder_cache[0] = 0;
+            divide_and_modulo(temp, left_boundary, remaining_length, remainder_cache, 0, remainder_cache.length, quotient_cache, left_boundary, remaining_length, decimal_base, 0, decimal_base.length);
+            digits[digits_index] = (byte) remainder_cache[0];
+            left_boundary = get_preceding_zeros(temp, left_boundary, remaining_length);
+            remaining_length = temp.length - left_boundary;
+            System.arraycopy(temp, left_boundary, quotient_cache, left_boundary, remaining_length);
+            --digits_index;
+        }
+    }
+
     private static int decimal_remainder_to_tight(final byte[] tight_remainder) {
         return tight_remainder[0] * 1000000000 + tight_remainder[1] * 100000000 + tight_remainder[2] * 10000000 + tight_remainder[3] * 1000000 + tight_remainder[4] * 100000 + tight_remainder[5] * 10000 + tight_remainder[6] * 1000 + tight_remainder[7] * 100 + tight_remainder[8] * 10 + tight_remainder[9];
     }
@@ -825,5 +845,200 @@ public final class Arithmetic {
             System.arraycopy(temp, left_boundary, quotient_cache, left_boundary, remaining_length);
             --integer_index;
         }
+    }
+
+    public static void convert_decimal_to_tight(final int[] integer, final int integer_s, final int integer_length, final byte[] digits, final int digits_s, final int digits_length) {
+        final byte[] quotient_cache = new byte[digits_length];
+        System.arraycopy(digits, digits_s, quotient_cache, 0, digits_length);
+        final byte[] temp = new byte[quotient_cache.length];
+        final byte[] remainder_cache = new byte[tight_base.length];
+        int integer_index = integer_s + integer_length - 1;
+        int left_boundary = get_preceding_zeros(quotient_cache, 0, quotient_cache.length);
+        int remaining_length = quotient_cache.length - left_boundary;
+        while (get_preceding_zeros(quotient_cache, left_boundary, remaining_length) < quotient_cache.length) {
+            Arrays.fill(temp, left_boundary, temp.length, (byte) 0);
+            Arrays.fill(remainder_cache, (byte) 0);
+            divide_and_modulo(temp, left_boundary, remaining_length, remainder_cache, 0, remainder_cache.length, quotient_cache, left_boundary, remaining_length, tight_base, 0, tight_base.length);
+            integer[integer_index] = decimal_remainder_to_tight(remainder_cache);
+            left_boundary = get_preceding_zeros(temp, left_boundary, remaining_length);
+            remaining_length = temp.length - left_boundary;
+            System.arraycopy(temp, left_boundary, quotient_cache, left_boundary, remaining_length);
+            --integer_index;
+        }
+    }
+
+    private static final byte[] decimal_zero = new byte[]{0};
+    private static final int[] tight_zero = new int[]{0};
+
+    public static void gcd(final byte[] result, final byte[] a, final byte[] b) {
+        final int maximum_length = Math.max(a.length, b.length);
+        byte[] larger, smaller;
+        final int compare_value = compare(a, b);
+        if (0 == compare_value) {
+            if (0 == compare(a, decimal_zero)) {
+                result[result.length - 1] = 1;
+            } else {
+                int target_length = Math.min(result.length, Math.min(a.length, b.length));
+                System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
+            }
+            return;
+        } else if (0 < compare_value) {
+            larger = new byte[maximum_length];
+            smaller = new byte[maximum_length];
+            System.arraycopy(a, 0, larger, maximum_length - a.length, a.length);
+            System.arraycopy(b, 0, smaller, maximum_length - b.length, b.length);
+        } else {
+            larger = new byte[maximum_length];
+            smaller = new byte[maximum_length];
+            System.arraycopy(b, 0, larger, maximum_length - b.length, b.length);
+            System.arraycopy(a, 0, smaller, maximum_length - a.length, a.length);
+        }
+        byte[] temp = new byte[maximum_length], temp_temp;
+        int larger_left_boundary = get_preceding_zeros(larger, 0, maximum_length);
+        int larger_length = maximum_length - larger_left_boundary;
+        int smaller_left_boundary = get_preceding_zeros(smaller, 0, maximum_length);
+        int smaller_length = maximum_length - smaller_left_boundary;
+        while (0 != compare(smaller, smaller_left_boundary, smaller_length, decimal_zero, 0, decimal_zero.length)) {
+            Arrays.fill(temp, smaller_left_boundary, maximum_length, (byte) 0);
+            modulo(temp, smaller_left_boundary, smaller_length, larger, larger_left_boundary, larger_length, smaller, smaller_left_boundary, smaller_length);
+            temp_temp = larger;
+            larger = smaller;
+            larger_left_boundary = smaller_left_boundary;
+            larger_length = smaller_length;
+            smaller = temp;
+            smaller_left_boundary = get_preceding_zeros(smaller, smaller_left_boundary, smaller_length);
+            smaller_length = maximum_length - smaller_left_boundary;
+            temp = temp_temp;
+        }
+        System.arraycopy(larger, larger_left_boundary, result, result.length - larger_length, larger_length);
+    }
+
+    public static void gcd(final byte[] result, final int result_s, final int result_length, final byte[] a, final int a_s, final int a_length, final byte[] b, final int b_s, final int b_length) {
+        final int maximum_length = Math.max(a_length, b_length);
+        byte[] larger, smaller;
+        final int compare_value = compare(a, a_s, a_length, b, b_s, b_length);
+        if (0 == compare_value) {
+            if (0 == compare(a, a_s, a_length, decimal_zero, 0, decimal_zero.length)) {
+                result[result_s + result_length - 1] = 1;
+            } else {
+                int target_length = Math.min(result_length, Math.min(a_length, b_length));
+                System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
+            }
+            return;
+        } else if (0 < compare_value) {
+            larger = new byte[maximum_length];
+            smaller = new byte[maximum_length];
+            System.arraycopy(a, a_s, larger, maximum_length - a_length, a_length);
+            System.arraycopy(b, b_s, smaller, maximum_length - b_length, b_length);
+        } else {
+            larger = new byte[maximum_length];
+            smaller = new byte[maximum_length];
+            System.arraycopy(b, b_s, larger, maximum_length - b_length, b_length);
+            System.arraycopy(a, a_s, smaller, maximum_length - a_length, a_length);
+        }
+        byte[] temp = new byte[maximum_length], temp_temp;
+        int larger_left_boundary = get_preceding_zeros(larger, 0, maximum_length);
+        int larger_length = maximum_length - larger_left_boundary;
+        int smaller_left_boundary = get_preceding_zeros(smaller, 0, maximum_length);
+        int smaller_length = maximum_length - smaller_left_boundary;
+        while (0 != compare(smaller, smaller_left_boundary, smaller_length, decimal_zero, 0, decimal_zero.length)) {
+            Arrays.fill(temp, smaller_left_boundary, maximum_length, (byte) 0);
+            modulo(temp, smaller_left_boundary, smaller_length, larger, larger_left_boundary, larger_length, smaller, smaller_left_boundary, smaller_length);
+            temp_temp = larger;
+            larger = smaller;
+            larger_left_boundary = smaller_left_boundary;
+            larger_length = smaller_length;
+            smaller = temp;
+            smaller_left_boundary = get_preceding_zeros(smaller, smaller_left_boundary, smaller_length);
+            smaller_length = maximum_length - smaller_left_boundary;
+            temp = temp_temp;
+        }
+        System.arraycopy(larger, larger_left_boundary, result, result_s + result_length - larger_length, larger_length);
+    }
+
+    public static void gcd(final int[] result, final int[] a, final int[] b) {
+        final int maximum_length = Math.max(a.length, b.length);
+        int[] larger, smaller;
+        final int compare_value = compare(a, b);
+        if (0 == compare_value) {
+            if (0 == compare(a, tight_zero)) {
+                result[result.length - 1] = 1;
+            } else {
+                int target_length = Math.min(result.length, Math.min(a.length, b.length));
+                System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
+            }
+            return;
+        } else if (0 < compare_value) {
+            larger = new int[maximum_length];
+            smaller = new int[maximum_length];
+            System.arraycopy(a, 0, larger, maximum_length - a.length, a.length);
+            System.arraycopy(b, 0, smaller, maximum_length - b.length, b.length);
+        } else {
+            larger = new int[maximum_length];
+            smaller = new int[maximum_length];
+            System.arraycopy(b, 0, larger, maximum_length - b.length, b.length);
+            System.arraycopy(a, 0, smaller, maximum_length - a.length, a.length);
+        }
+        int[] temp = new int[maximum_length], temp_temp;
+        int larger_left_boundary = get_preceding_zeros(larger, 0, maximum_length);
+        int larger_length = maximum_length - larger_left_boundary;
+        int smaller_left_boundary = get_preceding_zeros(smaller, 0, maximum_length);
+        int smaller_length = maximum_length - smaller_left_boundary;
+        while (0 != compare(smaller, smaller_left_boundary, smaller_length, tight_zero, 0, tight_zero.length)) {
+            Arrays.fill(temp, smaller_left_boundary, maximum_length, 0);
+            modulo(temp, smaller_left_boundary, smaller_length, larger, larger_left_boundary, larger_length, smaller, smaller_left_boundary, smaller_length);
+            temp_temp = larger;
+            larger = smaller;
+            larger_left_boundary = smaller_left_boundary;
+            larger_length = smaller_length;
+            smaller = temp;
+            smaller_left_boundary = get_preceding_zeros(smaller, smaller_left_boundary, smaller_length);
+            smaller_length = maximum_length - smaller_left_boundary;
+            temp = temp_temp;
+        }
+        System.arraycopy(larger, larger_left_boundary, result, result.length - larger_length, larger_length);
+    }
+
+    public static void gcd(final int[] result, final int result_s, final int result_length, final int[] a, final int a_s, final int a_length, final int[] b, final int b_s, final int b_length) {
+        final int maximum_length = Math.max(a_length, b_length);
+        int[] larger, smaller;
+        final int compare_value = compare(a, a_s, a_length, b, b_s, b_length);
+        if (0 == compare_value) {
+            if (0 == compare(a, a_s, a_length, tight_zero, 0, tight_zero.length)) {
+                result[result_s + result_length - 1] = 1;
+            } else {
+                int target_length = Math.min(result_length, Math.min(a_length, b_length));
+                System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
+            }
+            return;
+        } else if (0 < compare_value) {
+            larger = new int[maximum_length];
+            smaller = new int[maximum_length];
+            System.arraycopy(a, a_s, larger, maximum_length - a_length, a_length);
+            System.arraycopy(b, b_s, smaller, maximum_length - b_length, b_length);
+        } else {
+            larger = new int[maximum_length];
+            smaller = new int[maximum_length];
+            System.arraycopy(b, b_s, larger, maximum_length - b_length, b_length);
+            System.arraycopy(a, a_s, smaller, maximum_length - a_length, a_length);
+        }
+        int[] temp = new int[maximum_length], temp_temp;
+        int larger_left_boundary = get_preceding_zeros(larger, 0, maximum_length);
+        int larger_length = maximum_length - larger_left_boundary;
+        int smaller_left_boundary = get_preceding_zeros(smaller, 0, maximum_length);
+        int smaller_length = maximum_length - smaller_left_boundary;
+        while (0 != compare(smaller, smaller_left_boundary, smaller_length, tight_zero, 0, tight_zero.length)) {
+            Arrays.fill(temp, smaller_left_boundary, maximum_length, 0);
+            modulo(temp, smaller_left_boundary, smaller_length, larger, larger_left_boundary, larger_length, smaller, smaller_left_boundary, smaller_length);
+            temp_temp = larger;
+            larger = smaller;
+            larger_left_boundary = smaller_left_boundary;
+            larger_length = smaller_length;
+            smaller = temp;
+            smaller_left_boundary = get_preceding_zeros(smaller, smaller_left_boundary, smaller_length);
+            smaller_length = maximum_length - smaller_left_boundary;
+            temp = temp_temp;
+        }
+        System.arraycopy(larger, larger_left_boundary, result, result_s + result_length - larger_length, larger_length);
     }
 }

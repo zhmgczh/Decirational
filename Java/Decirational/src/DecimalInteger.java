@@ -2,7 +2,7 @@ import java.util.Objects;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public final class DecimalInteger implements Comparable<DecimalInteger> {
+public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     private final boolean negative;
     private final byte[] digits;
     public static final DecimalInteger ZERO = new DecimalInteger();
@@ -75,8 +75,8 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         this(Long.toString(number));
     }
 
-    public DecimalInteger(final LargeInteger large_integer) {
-        this(large_integer.to_decimal_integer());
+    public DecimalInteger(final TightInteger tight_integer) {
+        this(tight_integer.to_decimal_integer());
     }
 
     public DecimalInteger(String number) {
@@ -121,33 +121,49 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return sb.toString();
     }
 
-    public LargeInteger to_large_integer() {
+    public TightInteger to_tight_integer() {
         int tight_length = (int) (digits.length * Arithmetic.decimal_to_tight_length_ratio + 1) + 1;
         int[] integer = new int[tight_length];
         Arithmetic.convert_decimal_to_tight(integer, digits);
-        return new LargeInteger(integer, negative);
+        return new TightInteger(integer, negative);
     }
 
+    @Override
+    public DecimalInteger get_zero() {
+        return ZERO;
+    }
+
+    @Override
+    public DecimalInteger get_one() {
+        return ONE;
+    }
+
+    @Override
     public boolean is_zero() {
         return 1 == digits.length && 0 == digits[0];
     }
 
+    @Override
     public boolean is_unit_abs() {
         return 1 == digits.length && 1 == digits[0];
     }
 
+    @Override
     public boolean is_positive() {
         return !negative && !is_zero();
     }
 
+    @Override
     public boolean is_negative() {
         return negative;
     }
 
+    @Override
     public DecimalInteger negate() {
         return new DecimalInteger(digits, !negative, true);
     }
 
+    @Override
     public DecimalInteger abs() {
         return new DecimalInteger(digits, false, true);
     }
@@ -193,6 +209,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger(digits, negative, true);
     }
 
+    @Override
     public DecimalInteger plus(final DecimalInteger other) {
         if (is_zero()) {
             return other;
@@ -225,6 +242,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger(digits, negative, true);
     }
 
+    @Override
     public DecimalInteger minus(final DecimalInteger other) {
         if (is_zero()) {
             return other.negate();
@@ -238,6 +256,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return minus_raw(other);
     }
 
+    @Override
     public DecimalInteger multiply(final DecimalInteger other) {
         if (is_zero() || other.is_zero()) {
             return ZERO;
@@ -295,6 +314,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return divide_by_10(1);
     }
 
+    @Override
     public DecimalInteger divide_by(final DecimalInteger other) {
         if (other.is_zero()) {
             throw new ArithmeticException("Cannot divide by zero!");
@@ -314,6 +334,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger(digits, negative != other.negative, true);
     }
 
+    @Override
     public DecimalInteger modulo(final DecimalInteger other) {
         if (other.is_zero()) {
             throw new ArithmeticException("Cannot divide by zero!");
@@ -326,6 +347,7 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger(digits, negative, true);
     }
 
+    @Override
     public DecimalInteger[] divide_by_and_modulo(final DecimalInteger other) {
         if (other.is_zero()) {
             throw new ArithmeticException("Cannot divide by zero!");
@@ -348,6 +370,47 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
         return new DecimalInteger[]{quotient, remainder};
     }
 
+    @Override
+    public DecimalInteger gcd(final DecimalInteger other) {
+        if (is_zero() || other.is_zero() || is_unit_abs() || other.is_unit_abs()) {
+            return ONE;
+        }
+        final byte[] digits = new byte[Math.min(this.digits.length, other.digits.length)];
+        Arithmetic.gcd(digits, this.digits, other.digits);
+        return new DecimalInteger(digits, false, true);
+    }
+
+    @Override
+    public DecimalInteger lcm(final DecimalInteger other) {
+        return multiply(other).divide_by(gcd(other));
+    }
+
+    @Override
+    public DecimalInteger pow(final int exponent) {
+        if (exponent < 0) {
+            throw new IllegalArgumentException("Exponent cannot be negative!");
+        } else if (0 == exponent) {
+            return ONE;
+        } else if (1 == exponent) {
+            return this;
+        }
+        DecimalInteger result = ONE;
+        DecimalInteger base = this;
+        int power = exponent;
+        while (true) {
+            if (1 == (power & 1)) {
+                result = result.multiply(base);
+            }
+            power >>= 1;
+            if (power > 0) {
+                base = base.multiply(base);
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
     public static void main(final String[] args) {
         final Scanner input = new Scanner(System.in);
         while (input.hasNextLine()) {
@@ -363,6 +426,9 @@ public final class DecimalInteger implements Comparable<DecimalInteger> {
             System.out.println(a.multiply(b));
             System.out.println(a.divide_by(b));
             System.out.println(a.modulo(b));
+            System.out.println(a.gcd(b));
+            System.out.println(a.lcm(a));
+            System.out.println(a.pow(2));
         }
     }
 }
