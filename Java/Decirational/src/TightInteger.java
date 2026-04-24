@@ -384,7 +384,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
             System.out.println(a.divide_by(b));
             System.out.println(a.modulo(b));
             System.out.println(a.gcd(b));
-            System.out.println(a.lcm(a));
+            System.out.println(a.lcm(b));
             System.out.println(a.pow(2));
         }
     }
