@@ -97,6 +97,33 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return this.numerator + "/" + this.denominator;
     }
 
+    public boolean is_zero() {
+        return numerator.is_zero();
+    }
+
+    public boolean is_positive() {
+        return numerator.is_positive();
+    }
+
+    public boolean is_negative() {
+        return numerator.is_negative();
+    }
+
+    public Rational<T> negate() {
+        return new Rational<>(numerator.negate(), denominator);
+    }
+
+    public Rational<T> abs() {
+        return new Rational<>(numerator.abs(), denominator);
+    }
+
+    public Rational<T> reciprocal() {
+        if (is_zero()) {
+            throw new ArithmeticException("Cannot get the reciprocal of zero!");
+        }
+        return new Rational<>(denominator, numerator);
+    }
+
     @Override
     public int compareTo(final Rational<T> other) {
         final Rational<T> difference = minus(other);
@@ -120,29 +147,6 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     @Override
     public int hashCode() {
         return Objects.hash(numerator.hashCode(), denominator.hashCode());
-    }
-
-    public boolean is_zero() {
-        return numerator.is_zero();
-    }
-
-    public boolean is_positive() {
-        return numerator.is_positive();
-    }
-
-    public boolean is_negative() {
-        return numerator.is_negative();
-    }
-
-    public Rational<T> negate() {
-        return new Rational<>(numerator.negate(), denominator);
-    }
-
-    public Rational<T> reciprocal() {
-        if (is_zero()) {
-            throw new ArithmeticException("Cannot get the reciprocal of zero!");
-        }
-        return new Rational<>(denominator, numerator);
     }
 
     public Rational<T> plus(final Rational<T> other) {
