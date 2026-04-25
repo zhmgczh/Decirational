@@ -28,7 +28,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     public TightInteger(final int[] integer, final boolean negative) {
         if (null == integer) {
-            throw new IllegalArgumentException("Input int array cannot be null.");
+            throw new NullPointerException("Input int array cannot be null.");
         }
         if (0 == integer.length) {
             throw new IllegalArgumentException("Input int array cannot be empty.");
@@ -74,6 +74,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         this(new DecimalInteger(number));
     }
 
+    @Override
     public String toString() {
         return to_decimal_integer().toString();
     }
@@ -83,16 +84,6 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         byte[] digits = new byte[decimal_length];
         Arithmetic.convert_tight_to_decimal(digits, integer);
         return new DecimalInteger(digits, negative);
-    }
-
-    @Override
-    public TightInteger get_zero() {
-        return ZERO;
-    }
-
-    @Override
-    public TightInteger get_one() {
-        return ONE;
     }
 
     @Override
@@ -151,7 +142,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     public boolean equals(final Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        TightInteger other = (TightInteger) o;
+        final TightInteger other = (TightInteger) o;
         return negative == other.negative && Arrays.equals(integer, other.integer);
     }
 
@@ -237,7 +228,8 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         return new TightInteger(integer, negative != other.negative, true);
     }
 
-    public TightInteger multiply_4294967296(final int times) {
+    @Override
+    public TightInteger multiply_base(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Multiplication times cannot be negative!");
         } else if (0 == times) {
@@ -250,11 +242,13 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         return new TightInteger(integer, negative, true);
     }
 
-    public TightInteger multiply_4294967296() {
-        return multiply_4294967296(1);
+    @Override
+    public TightInteger multiply_base() {
+        return multiply_base(1);
     }
 
-    public TightInteger divide_by_4294967296(final int times) {
+    @Override
+    public TightInteger divide_by_base(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Division times cannot be negative!");
         } else if (0 == times) {
@@ -267,8 +261,9 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         return new TightInteger(integer, negative, true);
     }
 
-    public TightInteger divide_by_4294967296() {
-        return divide_by_4294967296(1);
+    @Override
+    public TightInteger divide_by_base() {
+        return divide_by_base(1);
     }
 
     @Override
@@ -329,7 +324,13 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger gcd(final TightInteger other) {
-        if (is_zero() || other.is_zero() || is_unit_abs() || other.is_unit_abs()) {
+        if (is_zero()) {
+            return other;
+        }
+        if (other.is_zero()) {
+            return this;
+        }
+        if (is_unit_abs() || other.is_unit_abs()) {
             return ONE;
         }
         final int[] integer = new int[Math.min(this.integer.length, other.integer.length)];

@@ -36,7 +36,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     public DecimalInteger(final byte[] digits, final boolean negative) {
         if (null == digits) {
-            throw new IllegalArgumentException("Input byte array cannot be null.");
+            throw new NullPointerException("Input byte array cannot be null.");
         }
         if (0 == digits.length) {
             throw new IllegalArgumentException("Input byte array cannot be empty.");
@@ -83,7 +83,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
         if (null == number) {
             throw new NumberFormatException("Input is null.");
         }
-        number = number.trim();
+        number = number.replaceAll("\\s", "");
         if (number.isEmpty()) {
             throw new NumberFormatException("Input is empty.");
         }
@@ -126,16 +126,6 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
         int[] integer = new int[tight_length];
         Arithmetic.convert_decimal_to_tight(integer, digits);
         return new TightInteger(integer, negative);
-    }
-
-    @Override
-    public DecimalInteger get_zero() {
-        return ZERO;
-    }
-
-    @Override
-    public DecimalInteger get_one() {
-        return ONE;
     }
 
     @Override
@@ -194,7 +184,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     public boolean equals(final Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        DecimalInteger other = (DecimalInteger) o;
+        final DecimalInteger other = (DecimalInteger) o;
         return negative == other.negative && Arrays.equals(digits, other.digits);
     }
 
@@ -280,7 +270,8 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
         return new DecimalInteger(digits, negative != other.negative, true);
     }
 
-    public DecimalInteger multiply_10(final int times) {
+    @Override
+    public DecimalInteger multiply_base(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Multiplication times cannot be negative!");
         } else if (0 == times) {
@@ -293,11 +284,13 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
         return new DecimalInteger(digits, negative, true);
     }
 
-    public DecimalInteger multiply_10() {
-        return multiply_10(1);
+    @Override
+    public DecimalInteger multiply_base() {
+        return multiply_base(1);
     }
 
-    public DecimalInteger divide_by_10(final int times) {
+    @Override
+    public DecimalInteger divide_by_base(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("Division times cannot be negative!");
         } else if (0 == times) {
@@ -310,8 +303,9 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
         return new DecimalInteger(digits, negative, true);
     }
 
-    public DecimalInteger divide_by_10() {
-        return divide_by_10(1);
+    @Override
+    public DecimalInteger divide_by_base() {
+        return divide_by_base(1);
     }
 
     @Override
@@ -372,7 +366,13 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     @Override
     public DecimalInteger gcd(final DecimalInteger other) {
-        if (is_zero() || other.is_zero() || is_unit_abs() || other.is_unit_abs()) {
+        if (is_zero()) {
+            return other;
+        }
+        if (other.is_zero()) {
+            return this;
+        }
+        if (is_unit_abs() || other.is_unit_abs()) {
             return ONE;
         }
         final byte[] digits = new byte[Math.min(this.digits.length, other.digits.length)];

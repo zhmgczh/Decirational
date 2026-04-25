@@ -17,6 +17,10 @@ public final class Arithmetic {
         return '-' == c;
     }
 
+    public static boolean is_fraction_bar(final char c) {
+        return '/' == c;
+    }
+
     public static byte to_byte(final char c) {
         return (byte) (c - '0');
     }

@@ -1,8 +1,4 @@
 public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T> {
-    T get_zero();
-
-    T get_one();
-
     boolean is_zero();
 
     boolean is_unit_abs();
@@ -20,6 +16,14 @@ public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T>
     T minus(final T other);
 
     T multiply(final T other);
+
+    T multiply_base(final int times);
+
+    T multiply_base();
+
+    T divide_by_base(final int times);
+
+    T divide_by_base();
 
     T divide_by(final T other);
 
