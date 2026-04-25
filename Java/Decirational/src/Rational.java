@@ -41,9 +41,9 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = integer.pow(0);
     }
 
-    public Rational(final Rational<T> integer) {
-        this.numerator = integer.numerator;
-        this.denominator = integer.denominator;
+    public Rational(final Rational<T> rational) {
+        this.numerator = rational.numerator;
+        this.denominator = rational.denominator;
     }
 
     public Rational(String string, final Class<T> integer_type) {
