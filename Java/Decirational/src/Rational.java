@@ -14,7 +14,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     }
 
     private Rational<T> get_one() {
-        return new Rational<>(numerator.pow(0), denominator.pow(0));
+        return new Rational<>(denominator.pow(0), denominator.pow(0));
     }
 
     public Rational(T numerator, T denominator) {
@@ -35,7 +35,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational(final T integer) {
         if (null == integer) {
-            throw new NullPointerException("Numerator and denominator cannot be null.");
+            throw new NullPointerException("Integer cannot be null.");
         }
         this.numerator = integer;
         this.denominator = integer.pow(0);

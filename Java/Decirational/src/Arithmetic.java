@@ -877,12 +877,8 @@ public final class Arithmetic {
     public static void gcd(final byte[] result, final byte[] a, final byte[] b) {
         final int compare_value = compare(a, b);
         if (0 == compare_value) {
-            if (0 == compare(a, decimal_zero)) {
-                result[result.length - 1] = 1;
-            } else {
-                int target_length = Math.min(result.length, Math.min(a.length, b.length));
-                System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
-            }
+            int target_length = Math.min(result.length, Math.min(a.length, b.length));
+            System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
             return;
         }
         final int maximum_length = Math.max(a.length, b.length);
@@ -918,12 +914,8 @@ public final class Arithmetic {
     public static void gcd(final byte[] result, final int result_s, final int result_length, final byte[] a, final int a_s, final int a_length, final byte[] b, final int b_s, final int b_length) {
         final int compare_value = compare(a, a_s, a_length, b, b_s, b_length);
         if (0 == compare_value) {
-            if (0 == compare(a, a_s, a_length, decimal_zero, 0, decimal_zero.length)) {
-                result[result_s + result_length - 1] = 1;
-            } else {
-                int target_length = Math.min(result_length, Math.min(a_length, b_length));
-                System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
-            }
+            int target_length = Math.min(result_length, Math.min(a_length, b_length));
+            System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
             return;
         }
         final int maximum_length = Math.max(a_length, b_length);
@@ -959,12 +951,8 @@ public final class Arithmetic {
     public static void gcd(final int[] result, final int[] a, final int[] b) {
         final int compare_value = compare(a, b);
         if (0 == compare_value) {
-            if (0 == compare(a, tight_zero)) {
-                result[result.length - 1] = 1;
-            } else {
-                int target_length = Math.min(result.length, Math.min(a.length, b.length));
-                System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
-            }
+            int target_length = Math.min(result.length, Math.min(a.length, b.length));
+            System.arraycopy(a, a.length - target_length, result, result.length - target_length, target_length);
             return;
         }
         final int maximum_length = Math.max(a.length, b.length);
@@ -1000,12 +988,8 @@ public final class Arithmetic {
     public static void gcd(final int[] result, final int result_s, final int result_length, final int[] a, final int a_s, final int a_length, final int[] b, final int b_s, final int b_length) {
         final int compare_value = compare(a, a_s, a_length, b, b_s, b_length);
         if (0 == compare_value) {
-            if (0 == compare(a, a_s, a_length, tight_zero, 0, tight_zero.length)) {
-                result[result_s + result_length - 1] = 1;
-            } else {
-                int target_length = Math.min(result_length, Math.min(a_length, b_length));
-                System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
-            }
+            int target_length = Math.min(result_length, Math.min(a_length, b_length));
+            System.arraycopy(a, a_s + a_length - target_length, result, result_s + result_length - target_length, target_length);
             return;
         }
         final int maximum_length = Math.max(a_length, b_length);
