@@ -124,6 +124,14 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return new Rational<>(denominator, numerator);
     }
 
+    public T get_numerator_abs() {
+        return numerator.abs();
+    }
+
+    public T get_denominator_abs() {
+        return denominator.abs();
+    }
+
     @Override
     public int compareTo(final Rational<T> other) {
         final Rational<T> difference = minus(other);
