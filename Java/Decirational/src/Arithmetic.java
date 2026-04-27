@@ -21,6 +21,18 @@ public final class Arithmetic {
         return '/' == c;
     }
 
+    public static boolean is_decimal_point(final char c) {
+        return '.' == c;
+    }
+
+    public static boolean is_left_square_bracket(final char c) {
+        return '[' == c;
+    }
+
+    public static boolean is_right_square_bracket(final char c) {
+        return ']' == c;
+    }
+
     public static byte to_byte(final char c) {
         return (byte) (c - '0');
     }
