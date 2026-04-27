@@ -34,7 +34,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = denominator.divide_by(gcd);
     }
 
-    private Rational(T numerator, T denominator, final boolean unsafe) {
+    private Rational(T numerator, T denominator, final boolean input_unsafe) {
         final T gcd = numerator.gcd(denominator);
         if (denominator.is_negative()) {
             numerator = numerator.negate();
@@ -44,7 +44,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = denominator.divide_by(gcd);
     }
 
-    private Rational(T numerator, T denominator, final boolean unsafe, final boolean second_unsafe) {
+    private Rational(T numerator, T denominator, final boolean input_unsafe, final boolean gcd_unsafe) {
         if (denominator.is_negative()) {
             numerator = numerator.negate();
             denominator = denominator.negate();
@@ -53,7 +53,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = denominator;
     }
 
-    private Rational(final T numerator, final T denominator, final boolean unsafe, final boolean second_unsafe, final boolean third_unsafe) {
+    private Rational(final T numerator, final T denominator, final boolean input_unsafe, final boolean gcd_unsafe, final boolean sign_unsafe) {
         this.numerator = numerator;
         this.denominator = denominator;
     }
