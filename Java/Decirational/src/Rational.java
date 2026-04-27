@@ -34,7 +34,17 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = denominator.divide_by(gcd);
     }
 
-    public Rational(T numerator, T denominator, boolean unsafe) {
+    private Rational(T numerator, T denominator, boolean unsafe) {
+        final T gcd = numerator.gcd(denominator);
+        if (denominator.is_negative()) {
+            numerator = numerator.negate();
+            denominator = denominator.negate();
+        }
+        this.numerator = numerator.divide_by(gcd);
+        this.denominator = denominator.divide_by(gcd);
+    }
+
+    private Rational(T numerator, T denominator, boolean unsafe, boolean second_unsafe) {
         this.numerator = numerator;
         this.denominator = denominator;
     }
@@ -210,6 +220,13 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return new Rational<>(denominator, numerator);
     }
 
+    private Rational<T> reciprocal(boolean unsafe) {
+        if (is_zero()) {
+            throw new ArithmeticException("Cannot get the reciprocal of zero!");
+        }
+        return new Rational<>(denominator, numerator);
+    }
+
     public T get_numerator_abs() {
         return numerator.abs();
     }
@@ -243,7 +260,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         final T multiplier_2 = this.denominator.divide_by(gcd);
         final T numerator = this.numerator.multiply(multiplier_1).plus(other.numerator.multiply(multiplier_2));
         final T denominator = gcd.multiply(multiplier_1).multiply(multiplier_2);
-        return new Rational<>(numerator, denominator);
+        return new Rational<>(numerator, denominator, true);
     }
 
     public Rational<T> minus(final Rational<T> other) {
@@ -252,7 +269,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         final T multiplier_2 = this.denominator.divide_by(gcd);
         final T numerator = this.numerator.multiply(multiplier_1).minus(other.numerator.multiply(multiplier_2));
         final T denominator = gcd.multiply(multiplier_1).multiply(multiplier_2);
-        return new Rational<>(numerator, denominator);
+        return new Rational<>(numerator, denominator, true);
     }
 
     public Rational<T> multiply(final Rational<T> other) {
@@ -260,14 +277,14 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         final T gcd_2 = other.denominator.gcd(this.numerator);
         final T denominator = this.denominator.divide_by(gcd_1).multiply(other.denominator.divide_by(gcd_2));
         final T numerator = this.numerator.divide_by(gcd_2).multiply(other.numerator.divide_by(gcd_1));
-        return new Rational<>(numerator, denominator, true);
+        return new Rational<>(numerator, denominator, true, true);
     }
 
     public Rational<T> divide_by(final Rational<T> other) {
         if (other.is_zero()) {
             throw new ArithmeticException("Cannot divide by zero!");
         }
-        return multiply(other.reciprocal());
+        return multiply(other.reciprocal(true));
     }
 
     public Rational<T> pow(final int exponent) {
@@ -275,7 +292,10 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             if (Integer.MIN_VALUE == exponent) {
                 throw new IllegalArgumentException("Exponent cannot be the minimum value of int.");
             }
-            return reciprocal().pow(-exponent);
+            if (is_zero()) {
+                throw new ArithmeticException("Exponent cannot be negative for zero!");
+            }
+            return reciprocal(true).pow(-exponent);
         } else if (0 == exponent) {
             return get_one();
         } else if (1 == exponent) {
