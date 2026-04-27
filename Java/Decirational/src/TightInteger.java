@@ -340,7 +340,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger lcm(final TightInteger other) {
-        return multiply(other).divide_by(gcd(other));
+        return divide_by(gcd(other)).multiply(other);
     }
 
     @Override

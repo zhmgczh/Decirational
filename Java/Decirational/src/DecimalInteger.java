@@ -382,7 +382,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     @Override
     public DecimalInteger lcm(final DecimalInteger other) {
-        return multiply(other).divide_by(gcd(other));
+        return divide_by(gcd(other)).multiply(other);
     }
 
     @Override
