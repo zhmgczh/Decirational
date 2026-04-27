@@ -15,7 +15,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     private Rational<T> get_one() {
         final T one = denominator.pow(0);
-        return new Rational<>(one, one);
+        return new Rational<>(one, one, true, true, true);
     }
 
     public Rational(T numerator, T denominator) {
@@ -95,8 +95,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         }
         int fraction_bar = -1;
         int decimal_point = -1;
-        int left_square_bracket = -1;
-        int right_square_bracket = -1;
+        int cyclic_begin = -1;
+        int cyclic_end = -1;
         for (int i = starting_point + 1; i < string.length(); ++i) {
             if (Arithmetic.is_fraction_bar(string.charAt(i))) {
                 if (-1 != fraction_bar || -1 != decimal_point) {
@@ -104,20 +104,20 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
                 }
                 fraction_bar = i;
             } else if (Arithmetic.is_decimal_point(string.charAt(i))) {
-                if (-1 != decimal_point || -1 != fraction_bar) {
+                if (-1 != decimal_point || -1 != fraction_bar || i == string.length() - 1) {
                     throw new NumberFormatException("The rational string does not have the right format!!");
                 }
                 decimal_point = i;
-            } else if (Arithmetic.is_left_square_bracket(string.charAt(i))) {
-                if (-1 != left_square_bracket || -1 == decimal_point) {
+            } else if (Arithmetic.is_cyclic_begin(string.charAt(i))) {
+                if (-1 != cyclic_begin || -1 == decimal_point) {
                     throw new NumberFormatException("The rational string does not have the right format!!");
                 }
-                left_square_bracket = i;
-            } else if (Arithmetic.is_right_square_bracket(string.charAt(i))) {
-                if (-1 == left_square_bracket || -1 != right_square_bracket || i != string.length() - 1 || 1 == i - left_square_bracket) {
+                cyclic_begin = i;
+            } else if (Arithmetic.is_cyclic_end(string.charAt(i))) {
+                if (-1 == cyclic_begin || -1 != cyclic_end || i != string.length() - 1 || 1 == i - cyclic_begin) {
                     throw new NumberFormatException("The rational string does not have the right format!!");
                 }
-                right_square_bracket = i;
+                cyclic_end = i;
             } else if (!Arithmetic.is_digit(string.charAt(i))) {
                 throw new NumberFormatException("The rational string does not have the right format!!");
             }
@@ -150,7 +150,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             }
             this.numerator = numerator.divide_by(gcd);
             this.denominator = denominator.divide_by(gcd);
-        } else if (-1 == left_square_bracket) {
+        } else if (-1 == cyclic_begin) {
             final String numerator_string = string.substring(starting_point, decimal_point) + string.substring(decimal_point + 1);
             final String denominator_string = "1" + "0".repeat(string.length() - decimal_point - 1);
             T numerator;
@@ -167,11 +167,11 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             }
             this.numerator = numerator.divide_by(gcd);
             this.denominator = denominator.divide_by(gcd);
-        } else if (-1 != right_square_bracket) {
-            final String finite_numerator_string = string.substring(starting_point, decimal_point) + string.substring(decimal_point + 1, left_square_bracket);
-            final String finite_denominator_string = "1" + "0".repeat(left_square_bracket - decimal_point - 1);
-            final String cyclic_numerator_string = string.substring(left_square_bracket + 1, right_square_bracket);
-            final String cyclic_denominator_string = "9".repeat(right_square_bracket - left_square_bracket - 1) + "0".repeat(left_square_bracket - decimal_point - 1);
+        } else if (-1 != cyclic_end) {
+            final String finite_numerator_string = string.substring(starting_point, decimal_point) + string.substring(decimal_point + 1, cyclic_begin);
+            final String finite_denominator_string = "1" + "0".repeat(cyclic_begin - decimal_point - 1);
+            final String cyclic_numerator_string = string.substring(cyclic_begin + 1, cyclic_end);
+            final String cyclic_denominator_string = "9".repeat(cyclic_end - cyclic_begin - 1) + "0".repeat(cyclic_begin - decimal_point - 1);
             final T finite_numerator;
             final T finite_denominator;
             final T cyclic_numerator;

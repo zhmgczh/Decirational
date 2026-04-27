@@ -25,11 +25,11 @@ public final class Arithmetic {
         return '.' == c;
     }
 
-    public static boolean is_left_square_bracket(final char c) {
+    public static boolean is_cyclic_begin(final char c) {
         return '[' == c;
     }
 
-    public static boolean is_right_square_bracket(final char c) {
+    public static boolean is_cyclic_end(final char c) {
         return ']' == c;
     }
 
