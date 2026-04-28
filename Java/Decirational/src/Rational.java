@@ -81,7 +81,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = integer.pow(0);
     }
 
-    public Rational(final T integer, final boolean input_unsafe) {
+    private Rational(final T integer, final boolean input_unsafe) {
         this.numerator = integer;
         this.denominator = integer.pow(0);
     }
@@ -96,7 +96,10 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational(String string, final Class<T> integer_type) {
         if (null == string) {
-            throw new NumberFormatException("Input is null.");
+            throw new IllegalArgumentException("Input is null.");
+        }
+        if (null == integer_type) {
+            throw new IllegalArgumentException("Integer type is null.");
         }
         string = string.replaceAll("\\s", "");
         if (string.isEmpty()) {
@@ -257,14 +260,17 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return decimal.toString();
     }
 
-    public String to_truncate_decimal_string(int round_to) {
+    public String to_truncate_decimal_string(final int round_to) {
         final T ten = get_ten();
         T[] integer_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
         final T whole_integer = integer_and_remainder[0];
         final String whole_integer_string = whole_integer.toString();
         if (whole_integer_string.length() <= -round_to) {
-            return "0";
+            return (numerator.is_negative() ? '-' : "") + "0";
         } else if (round_to < 0) {
+            if (Integer.MIN_VALUE == round_to) {
+                throw new IllegalArgumentException("Cannot round to Integer.MIN_VALUE!");
+            }
             final T shift_base = ten.pow(-round_to);
             final T result = whole_integer.divide_by(shift_base).multiply(shift_base);
             return (numerator.is_negative() ? '-' : "") + result.toString();
@@ -286,22 +292,26 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return decimal.toString();
     }
 
-    public String to_round_decimal_string(int round_to) {
-        final T one = denominator.pow(0);
-        final Rational<T> five = new Rational<>(get_five(), one, true, true, true);
-        final Rational<T> ten = new Rational<>(get_ten(), one, true, true, true);
+    public String to_round_decimal_string(final int round_to) {
+        if (Integer.MIN_VALUE == round_to) {
+            throw new IllegalArgumentException("Cannot round to Integer.MIN_VALUE!");
+        }
+        final Rational<T> five = new Rational<>(get_five(), true);
+        final Rational<T> ten = new Rational<>(get_ten(), true);
         final Rational<T> shift_base = ten.pow(-round_to - 1);
         final Rational<T> delta = five.multiply(shift_base);
         final Rational<T> temp_rational = is_negative() ? minus(delta) : plus(delta);
         return temp_rational.to_truncate_decimal_string(round_to);
     }
 
-    public String to_ceil_decimal_string(int round_to) {
+    public String to_ceil_decimal_string(final int round_to) {
         if (is_negative()) {
             return '-' + negate().to_floor_decimal_string(round_to);
         }
-        final T one = denominator.pow(0);
-        final Rational<T> ten = new Rational<>(get_ten(), one, true, true, true);
+        if (Integer.MIN_VALUE == round_to) {
+            throw new IllegalArgumentException("Cannot round to Integer.MIN_VALUE!");
+        }
+        final Rational<T> ten = new Rational<>(get_ten(), true);
         if (multiply(ten.pow(round_to)).is_integer()) {
             return to_truncate_decimal_string(round_to);
         }
@@ -310,7 +320,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return temp_rational.to_truncate_decimal_string(round_to);
     }
 
-    public String to_floor_decimal_string(int round_to) {
+    public String to_floor_decimal_string(final int round_to) {
         if (is_negative()) {
             return '-' + negate().to_ceil_decimal_string(round_to);
         }
@@ -348,7 +358,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return new Rational<>(denominator, numerator, true, true);
     }
 
-    private Rational<T> reciprocal(boolean unsafe) {
+    private Rational<T> reciprocal(final boolean unsafe) {
         return new Rational<>(denominator, numerator, true, true);
     }
 
@@ -414,11 +424,11 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational<T> pow(final int exponent) {
         if (exponent < 0) {
-            if (Integer.MIN_VALUE == exponent) {
-                return reciprocal(true).pow(Integer.MAX_VALUE).multiply(reciprocal(true));
-            }
             if (is_zero()) {
                 throw new ArithmeticException("Exponent cannot be negative for zero!");
+            }
+            if (Integer.MIN_VALUE == exponent) {
+                return reciprocal(true).pow(Integer.MAX_VALUE).multiply(reciprocal(true));
             }
             return reciprocal(true).pow(-exponent);
         } else if (0 == exponent) {
