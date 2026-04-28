@@ -1,3 +1,4 @@
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Scanner;
 
@@ -16,6 +17,20 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     private Rational<T> get_one() {
         final T one = denominator.pow(0);
         return new Rational<>(one, one, true, true, true);
+    }
+
+    private T get_five() {
+        final T one = denominator.pow(0);
+        final T two = one.plus(one);
+        final T four = two.plus(two);
+        return four.plus(one);
+    }
+
+    private T get_ten() {
+        final T one = denominator.pow(0);
+        final T two = one.plus(one);
+        final T four = two.plus(two);
+        return four.multiply(two).plus(two);
     }
 
     public Rational(T numerator, T denominator) {
@@ -62,6 +77,11 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         if (null == integer) {
             throw new NullPointerException("Integer cannot be null.");
         }
+        this.numerator = integer;
+        this.denominator = integer.pow(0);
+    }
+
+    public Rational(final T integer, final boolean input_unsafe) {
         this.numerator = integer;
         this.denominator = integer.pow(0);
     }
@@ -199,7 +219,106 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     @Override
     public String toString() {
-        return this.numerator + "/" + this.denominator;
+        if (denominator.is_one()) {
+            return numerator.toString();
+        }
+        return to_fraction_string();
+    }
+
+    public String to_fraction_string() {
+        return numerator + "/" + denominator;
+    }
+
+    public String to_decimal_string() {
+        final T ten = get_ten();
+        T[] integer_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
+        final T whole_integer = integer_and_remainder[0];
+        T remainder = integer_and_remainder[1];
+        final StringBuilder decimal = new StringBuilder();
+        decimal.append(numerator.is_negative() ? '-' : "").append(whole_integer).append(remainder.is_zero() ? "" : '.');
+        final HashMap<T, Integer> remainder_map = new HashMap<>();
+        remainder_map.put(remainder, decimal.length());
+        int starting_cyclic = -1;
+        while (!remainder.is_zero() && -1 == starting_cyclic) {
+            remainder = remainder.multiply(ten);
+            integer_and_remainder = remainder.divide_by_and_modulo(denominator);
+            final T integer = integer_and_remainder[0];
+            remainder = integer_and_remainder[1];
+            decimal.append(integer.toString().charAt(0));
+            if (remainder_map.containsKey(remainder)) {
+                starting_cyclic = remainder_map.get(remainder);
+            }
+            remainder_map.put(remainder, decimal.length());
+        }
+        if (-1 != starting_cyclic) {
+            decimal.insert(starting_cyclic, Arithmetic.cyclic_begin);
+            decimal.append(Arithmetic.cyclic_end);
+        }
+        return decimal.toString();
+    }
+
+    public String to_truncate_decimal_string(int round_to) {
+        final T ten = get_ten();
+        T[] integer_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
+        final T whole_integer = integer_and_remainder[0];
+        final String whole_integer_string = whole_integer.toString();
+        if (whole_integer_string.length() <= -round_to) {
+            return "0";
+        } else if (round_to < 0) {
+            final T shift_base = ten.pow(-round_to);
+            final T result = whole_integer.divide_by(shift_base).multiply(shift_base);
+            return (numerator.is_negative() ? '-' : "") + result.toString();
+        } else if (0 == round_to) {
+            return (numerator.is_negative() ? '-' : "") + whole_integer_string;
+        }
+        T remainder = integer_and_remainder[1];
+        final StringBuilder decimal = new StringBuilder();
+        decimal.append(numerator.is_negative() ? '-' : "").append(whole_integer_string).append(remainder.is_zero() ? "" : '.');
+        int index = 0;
+        while (index < round_to && !remainder.is_zero()) {
+            remainder = remainder.multiply(ten);
+            integer_and_remainder = remainder.divide_by_and_modulo(denominator);
+            final T integer = integer_and_remainder[0];
+            remainder = integer_and_remainder[1];
+            decimal.append(integer.toString().charAt(0));
+            ++index;
+        }
+        return decimal.toString();
+    }
+
+    public String to_round_decimal_string(int round_to) {
+        final T one = denominator.pow(0);
+        final Rational<T> five = new Rational<>(get_five(), one, true, true, true);
+        final Rational<T> ten = new Rational<>(get_ten(), one, true, true, true);
+        final Rational<T> shift_base = ten.pow(-round_to - 1);
+        final Rational<T> delta = five.multiply(shift_base);
+        final Rational<T> temp_rational = is_negative() ? minus(delta) : plus(delta);
+        return temp_rational.to_truncate_decimal_string(round_to);
+    }
+
+    public String to_ceil_decimal_string(int round_to) {
+        if (is_negative()) {
+            return '-' + negate().to_floor_decimal_string(round_to);
+        }
+        final T one = denominator.pow(0);
+        final Rational<T> ten = new Rational<>(get_ten(), one, true, true, true);
+        if (multiply(ten.pow(round_to)).is_integer()) {
+            return to_truncate_decimal_string(round_to);
+        }
+        final Rational<T> shift_base = ten.pow(-round_to);
+        final Rational<T> temp_rational = plus(shift_base);
+        return temp_rational.to_truncate_decimal_string(round_to);
+    }
+
+    public String to_floor_decimal_string(int round_to) {
+        if (is_negative()) {
+            return '-' + negate().to_ceil_decimal_string(round_to);
+        }
+        return to_truncate_decimal_string(round_to);
+    }
+
+    public boolean is_integer() {
+        return denominator.is_one();
     }
 
     public boolean is_zero() {
@@ -296,7 +415,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     public Rational<T> pow(final int exponent) {
         if (exponent < 0) {
             if (Integer.MIN_VALUE == exponent) {
-                throw new IllegalArgumentException("Exponent cannot be the minimum value of int.");
+                return reciprocal(true).pow(Integer.MAX_VALUE).multiply(reciprocal(true));
             }
             if (is_zero()) {
                 throw new ArithmeticException("Exponent cannot be negative for zero!");
@@ -333,6 +452,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             final Rational<TightInteger> b = new Rational<>(b_str, TightInteger.class);
             System.out.println(a);
             System.out.println(b);
+            System.out.println(a.to_decimal_string());
+            System.out.println(b.to_decimal_string());
             System.out.println(a.compareTo(b));
             System.out.println(a.plus(b));
             System.out.println(a.minus(b));

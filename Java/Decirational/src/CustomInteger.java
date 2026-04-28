@@ -1,6 +1,8 @@
 public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T> {
     boolean is_zero();
 
+    boolean is_one();
+
     boolean is_unit_abs();
 
     boolean is_positive();

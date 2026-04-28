@@ -92,6 +92,11 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     @Override
+    public boolean is_one() {
+        return !negative && 1 == integer.length && 1 == integer[0];
+    }
+
+    @Override
     public boolean is_unit_abs() {
         return 1 == integer.length && 1 == integer[0];
     }

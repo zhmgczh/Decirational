@@ -134,6 +134,11 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     }
 
     @Override
+    public boolean is_one() {
+        return !negative && 1 == digits.length && 1 == digits[0];
+    }
+
+    @Override
     public boolean is_unit_abs() {
         return 1 == digits.length && 1 == digits[0];
     }
