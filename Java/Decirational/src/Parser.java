@@ -22,15 +22,15 @@ enum TokenType {
     }
 }
 
-interface Token extends Enumeration<Token> {
+interface Token {
     public char get_type_code();
 }
 
 enum Operator implements Token {
     PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), MODULO('%');
     private final char operator_code;
-    Enumeration<Token> left;
-    Enumeration<Token> right;
+    Token left;
+    Token right;
 
     Operator(char operator_code) {
         this.operator_code = operator_code;
@@ -39,16 +39,6 @@ enum Operator implements Token {
     @Override
     public char get_type_code() {
         return operator_code;
-    }
-
-    @Override
-    public boolean hasMoreElements() {
-        return false;
-    }
-
-    @Override
-    public Token nextElement() {
-        return null;
     }
 }
 
@@ -68,16 +58,6 @@ enum Operand implements Token {
 
     public Object get_value() {
         return value;
-    }
-
-    @Override
-    public boolean hasMoreElements() {
-        return false;
-    }
-
-    @Override
-    public Token nextElement() {
-        return null;
     }
 }
 
