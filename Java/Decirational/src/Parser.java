@@ -4,7 +4,9 @@ import java.util.LinkedHashSet;
 import java.util.Scanner;
 
 interface Token {
-    public char get_type_code();
+    char get_type_code();
+
+    String toString();
 }
 
 enum Parenthesis implements Token {
@@ -34,6 +36,11 @@ enum Operator implements Token {
         return operator_code;
     }
 
+    @Override
+    public String toString() {
+        return super.toString() + '(' + operator_code + ')';
+    }
+
     public static int get_priority(Operator operator) {
         return switch (operator) {
             case PLUS, MINUS -> 0;
@@ -58,6 +65,11 @@ enum OperandType implements Token {
     @Override
     public char get_type_code() {
         return operand_code;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString();
     }
 }
 
@@ -100,7 +112,7 @@ final class Operand implements Token {
 
     @Override
     public String toString() {
-        return operand_type.toString() + "(" + value + ")";
+        return operand_type.toString() + '(' + value + ')';
     }
 
     @Override
@@ -129,8 +141,8 @@ final class Lexer<T extends CustomInteger<T>> {
         LinkedHashSet<Token> rational_set = new LinkedHashSet<>();
         rational_set.add(OperandType.RATIONAL);
         char_table.put('.', rational_set);
-        char_table.put('[', rational_set);
-        char_table.put(']', rational_set);
+        char_table.put(Arithmetic.cyclic_begin, rational_set);
+        char_table.put(Arithmetic.cyclic_end, rational_set);
         LinkedHashSet<Token> left_parenthesis_set = new LinkedHashSet<>();
         left_parenthesis_set.add(Parenthesis.LEFT_PARENTHESIS);
         char_table.put('(', left_parenthesis_set);
