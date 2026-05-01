@@ -7,8 +7,18 @@ public final class Lexer<T extends CustomInteger<T>> {
     private final Class<T> large_integer_type;
     private final Class<Rational<T>> rational_type;
     private static final HashMap<Character, LinkedHashSet<Token>> char_table = new HashMap<>();
+    private static final Token[] normal_tokens = {Parenthesis.LEFT_PARENTHESIS, Parenthesis.RIGHT_PARENTHESIS, Floor.LEFT_FLOOR, Floor.RIGHT_FLOOR, Absolute.ABSOLUTE, Operator.PLUS, Operator.MINUS, Operator.MULTIPLICATION, Operator.DIVISION, Operator.MODULO, Operator.POWER};
+
+    private static void register_token(Token token) {
+        LinkedHashSet<Token> token_set = new LinkedHashSet<>();
+        token_set.add(token);
+        char_table.put(token.get_type_code(), token_set);
+    }
 
     static {
+        for (Token token : normal_tokens) {
+            register_token(token);
+        }
         LinkedHashSet<Token> number_set = new LinkedHashSet<>();
         number_set.add(OperandType.INTEGER);
         number_set.add(OperandType.LARGE_INTEGER);
@@ -21,39 +31,6 @@ public final class Lexer<T extends CustomInteger<T>> {
         char_table.put('.', rational_set);
         char_table.put(Arithmetic.cyclic_begin, rational_set);
         char_table.put(Arithmetic.cyclic_end, rational_set);
-        LinkedHashSet<Token> left_parenthesis_set = new LinkedHashSet<>();
-        left_parenthesis_set.add(Parenthesis.LEFT_PARENTHESIS);
-        char_table.put('(', left_parenthesis_set);
-        LinkedHashSet<Token> right_parenthesis_set = new LinkedHashSet<>();
-        right_parenthesis_set.add(Parenthesis.RIGHT_PARENTHESIS);
-        char_table.put(')', right_parenthesis_set);
-        LinkedHashSet<Token> left_floor_set = new LinkedHashSet<>();
-        left_floor_set.add(Floor.LEFT_FLOOR);
-        char_table.put('[', left_floor_set);
-        LinkedHashSet<Token> right_floor_set = new LinkedHashSet<>();
-        right_floor_set.add(Floor.RIGHT_FLOOR);
-        char_table.put(']', right_floor_set);
-        LinkedHashSet<Token> absolute_set = new LinkedHashSet<>();
-        absolute_set.add(Absolute.ABSOLUTE);
-        char_table.put('|', absolute_set);
-        LinkedHashSet<Token> plus_set = new LinkedHashSet<>();
-        plus_set.add(Operator.PLUS);
-        char_table.put('+', plus_set);
-        LinkedHashSet<Token> minus_set = new LinkedHashSet<>();
-        minus_set.add(Operator.MINUS);
-        char_table.put('-', minus_set);
-        LinkedHashSet<Token> multiplication_set = new LinkedHashSet<>();
-        multiplication_set.add(Operator.MULTIPLICATION);
-        char_table.put('*', multiplication_set);
-        LinkedHashSet<Token> division_set = new LinkedHashSet<>();
-        division_set.add(Operator.DIVISION);
-        char_table.put('/', division_set);
-        LinkedHashSet<Token> modulo_set = new LinkedHashSet<>();
-        modulo_set.add(Operator.MODULO);
-        char_table.put('%', modulo_set);
-        LinkedHashSet<Token> power_set = new LinkedHashSet<>();
-        power_set.add(Operator.POWER);
-        char_table.put('^', power_set);
     }
 
     public Lexer(final Class<T> large_integer_type, final Class<Rational<T>> rational_type) {
