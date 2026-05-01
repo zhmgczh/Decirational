@@ -33,6 +33,9 @@ public final class Lexer<T extends CustomInteger<T>> {
         LinkedHashSet<Token> right_floor_set = new LinkedHashSet<>();
         right_floor_set.add(Floor.RIGHT_FLOOR);
         char_table.put(']', right_floor_set);
+        LinkedHashSet<Token> absolute_set = new LinkedHashSet<>();
+        absolute_set.add(Absolute.ABSOLUTE);
+        char_table.put('|', absolute_set);
         LinkedHashSet<Token> plus_set = new LinkedHashSet<>();
         plus_set.add(Operator.PLUS);
         char_table.put('+', plus_set);
@@ -106,7 +109,7 @@ public final class Lexer<T extends CustomInteger<T>> {
 
     public static void main(final String[] args) {
         final Scanner input = new Scanner(System.in);
-        @SuppressWarnings("unchecked") final Lexer<DecimalInteger> lexer = new Lexer<>(DecimalInteger.class, (Class<Rational<DecimalInteger>>) (Class<?>) Rational.class);
+        @SuppressWarnings("unchecked") final Lexer<TightInteger> lexer = new Lexer<>(TightInteger.class, (Class<Rational<TightInteger>>) (Class<?>) Rational.class);
         while (input.hasNextLine()) {
             final String expression = input.nextLine();
             System.out.println(lexer.get_tokens(expression));

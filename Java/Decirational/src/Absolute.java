@@ -1,8 +1,8 @@
-public enum Floor implements Token {
-    LEFT_FLOOR('['), RIGHT_FLOOR(']');
+public enum Absolute implements Token {
+    ABSOLUTE('|');
     private final char type_code;
 
-    Floor(char type_code) {
+    Absolute(char type_code) {
         this.type_code = type_code;
     }
 
