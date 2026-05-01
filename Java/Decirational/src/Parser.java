@@ -21,6 +21,11 @@ enum Parenthesis implements Token {
     public char get_type_code() {
         return type_code;
     }
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
 }
 
 enum Operator implements Token {
@@ -102,7 +107,7 @@ final class Operand implements Token {
         }
         Rational<T> rational;
         try {
-            rational = rational_type.getConstructor(String.class).newInstance(value);
+            rational = rational_type.getConstructor(String.class, Class.class).newInstance(value, large_integer_type);
         } catch (Exception e) {
             throw new IllegalArgumentException(value + " is not a valid rational.");
         }
@@ -222,7 +227,7 @@ final class Lexer<T extends CustomInteger<T>> {
 
     public static void main(final String[] args) {
         final Scanner input = new Scanner(System.in);
-        final Lexer<DecimalInteger> lexer = new Lexer<>(DecimalInteger.class, (Class<Rational<DecimalInteger>>) (Class<?>) Rational.class);
+        @SuppressWarnings("unchecked") final Lexer<DecimalInteger> lexer = new Lexer<>(DecimalInteger.class, (Class<Rational<DecimalInteger>>) (Class<?>) Rational.class);
         while (input.hasNextLine()) {
             final String expression = input.nextLine();
             System.out.println(lexer.get_tokens(expression));
