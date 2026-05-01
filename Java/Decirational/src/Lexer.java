@@ -27,6 +27,12 @@ public final class Lexer<T extends CustomInteger<T>> {
         LinkedHashSet<Token> right_parenthesis_set = new LinkedHashSet<>();
         right_parenthesis_set.add(Parenthesis.RIGHT_PARENTHESIS);
         char_table.put(')', right_parenthesis_set);
+        LinkedHashSet<Token> left_floor_set = new LinkedHashSet<>();
+        left_floor_set.add(Floor.LEFT_FLOOR);
+        char_table.put('[', left_floor_set);
+        LinkedHashSet<Token> right_floor_set = new LinkedHashSet<>();
+        right_floor_set.add(Floor.RIGHT_FLOOR);
+        char_table.put(']', right_floor_set);
         LinkedHashSet<Token> plus_set = new LinkedHashSet<>();
         plus_set.add(Operator.PLUS);
         char_table.put('+', plus_set);
