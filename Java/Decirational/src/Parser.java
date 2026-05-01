@@ -31,6 +31,8 @@ enum Parenthesis implements Token {
 enum Operator implements Token {
     PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), MODULO('%'), POWER('^');
     private final char operator_code;
+    Token left;
+    Token right;
 
     Operator(char operator_code) {
         this.operator_code = operator_code;
