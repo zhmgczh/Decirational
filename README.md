@@ -8,7 +8,8 @@ To ensure maximum interoperability and performance flexibility, this project pro
 
 ## 🚀 Features
 
-* **Exact Decimal Arithmetic**: Absolute precision for all numbers and operations in the decimal rational field (decimal integers with arbitrary length, decimal numbers accurate to any places, repeating decimals with the repetend enclosed by {}, addition +, subtraction -, multiplication *, exact division /, parenthesis (), absolute value |, round down to the nearest integer floor [], and integer modulo %).
+* **Exact Decimal Arithmetic Calculator**: Absolute precision for all numbers and operations in the decimal rational field (decimal integers with arbitrary length, decimal numbers accurate to any places, repeating decimals with the repetend enclosed by {}, addition +, subtraction -, multiplication *, exact division /, parenthesis (), absolute value |, round down to the nearest integer floor [], and integer modulo %).
+* **Easy-to-use APIs to call**: For experienced programmers to be much more flexible and able to perform other advanced functions, some well-defined APIs are provided and are easy to call.
 * **High Concurrency Ready**: Thread-safe, immutable architecture designed for lock-free read operations and high-throughput multi-threaded environments.
 * **Implementation Parity**: Strict functional and API consistency across Rust, Go, and Java.
 * **Zero Dependencies**: Utilizes native big-number abstractions or highly audited, lightweight implementations to maintain secure, high-performance execution.
