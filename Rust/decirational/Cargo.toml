@@ -1,0 +1,17 @@
+[package]
+name = "decirational"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "decirational"
+path = "src/bin/decirational.rs"
+
+[lib]
+name = "decirational"
+path = "src/lib.rs"
+# "lib" (rlib) is what the "decirational" binary above and `cargo test` link
+# against; "cdylib"/"staticlib" additionally produce a C-ABI shared/static
+# library (libdecirational.so/.dylib/.dll and libdecirational.a) exposing
+# the extern "C" functions in src/capi.rs, per capi/decirational.h.
+crate-type = ["lib", "cdylib", "staticlib"]

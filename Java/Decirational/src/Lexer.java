@@ -44,6 +44,18 @@ public final class Lexer<T extends CustomInteger<T>> {
             final String value = expression.substring(left_index, right_index);
             final Operand operand = new Operand(value, large_integer_type, rational_type);
             tokens.add(operand);
+        } else if (token == Operator.DIVISION) {
+            // Pair up consecutive '/' characters into "//" (integer division)
+            // tokens, left to right, leaving a lone trailing '/' (if the run
+            // is an odd length) as ordinary (exact) division.
+            int remaining = right_index - left_index;
+            while (remaining >= 2) {
+                tokens.add(Operator.INTEGER_DIVISION);
+                remaining -= 2;
+            }
+            if (1 == remaining) {
+                tokens.add(Operator.DIVISION);
+            }
         } else {
             for (int i = left_index; i < right_index; ++i) {
                 tokens.add(token);
@@ -67,7 +79,7 @@ public final class Lexer<T extends CustomInteger<T>> {
             final char c = expression.charAt(right_index);
             final LinkedHashSet<Token> current_set = char_table.get(c);
             if (null == current_set) {
-                throw new IllegalArgumentException("Illegal character " + c + " in expression: " + expression);
+                throw new IllegalArgumentException("illegal character " + c + " in expression: " + expression);
             }
             final LinkedHashSet<Token> next_set = new LinkedHashSet<>(set);
             next_set.retainAll(current_set);

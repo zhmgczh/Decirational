@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: eclipse-temurin:21-jdk
+
+%files
+    ../Decirational/src /opt/decirational/src
+
+%post
+    mkdir -p /opt/decirational/out
+    javac -d /opt/decirational/out /opt/decirational/src/*.java
+
+%runscript
+    exec java -cp /opt/decirational/out Main "$@"
+
+%labels
+    Application Decirational
+    JDK 21
+
+%help
+    Decirational calculator.
+    Usage: apptainer run decirational.sif
+    Then type arithmetic expressions (supporting + - * / % ^, parentheses,
+    [floor brackets] and |absolute value bars|) one per line on stdin.

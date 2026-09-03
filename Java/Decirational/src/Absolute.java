@@ -14,6 +14,8 @@ public enum Absolute implements Token {
 
     @Override
     public String toString() {
-        return super.toString() + '(' + type_code + ')';
+        // The literal syntax ("|", not the enum constant name "ABSOLUTE")
+        // so error messages read the same as a user's own input.
+        return String.valueOf(type_code);
     }
 }

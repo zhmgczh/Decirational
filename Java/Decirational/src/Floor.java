@@ -14,6 +14,9 @@ public enum Floor implements Token {
 
     @Override
     public String toString() {
-        return super.toString() + '(' + type_code + ')';
+        // The literal syntax (e.g. "[", not the enum constant name
+        // "LEFT_FLOOR") so error messages read the same as a user's own
+        // input.
+        return String.valueOf(type_code);
     }
 }

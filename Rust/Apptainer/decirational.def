@@ -1,0 +1,26 @@
+Bootstrap: docker
+From: rust:1.82
+
+%files
+    ../decirational/Cargo.toml /opt/decirational/Cargo.toml
+    ../decirational/Cargo.lock /opt/decirational/Cargo.lock
+    ../decirational/src /opt/decirational/src
+
+%post
+    cd /opt/decirational
+    cargo build --release
+    cp target/release/decirational /usr/local/bin/decirational
+
+%runscript
+    exec decirational "$@"
+
+%labels
+    Application Decirational
+    Language Rust
+    RustVersion 1.82
+
+%help
+    Decirational calculator (Rust implementation).
+    Usage: apptainer run decirational.sif [--integer=decimal|tight] [--format=<format>] [--precision=N]
+    Then type arithmetic expressions (supporting + - * / % ^, parentheses,
+    [floor brackets] and |absolute value bars|) one per line on stdin.

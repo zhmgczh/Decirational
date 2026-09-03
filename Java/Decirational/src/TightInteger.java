@@ -11,7 +11,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     public static TightInteger get_digit(int index) {
         if (index < 0 || index > 1) {
-            throw new IllegalArgumentException("The index must be either 0 or 1.");
+            throw new IllegalArgumentException("the index must be either 0 or 1");
         }
         return numbers[index];
     }
@@ -28,10 +28,10 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     public TightInteger(final int[] integer, final boolean negative) {
         if (null == integer) {
-            throw new NullPointerException("Input int array cannot be null.");
+            throw new NullPointerException("input int array cannot be null");
         }
         if (0 == integer.length) {
-            throw new IllegalArgumentException("Input int array cannot be empty.");
+            throw new IllegalArgumentException("input int array cannot be empty");
         }
         int[] new_integer = Arithmetic.optimize(integer);
         if (new_integer == integer) {
@@ -236,7 +236,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger multiply_base(final int times) {
         if (times < 0) {
-            throw new IllegalArgumentException("Multiplication times cannot be negative!");
+            throw new IllegalArgumentException("multiplication times cannot be negative");
         } else if (0 == times) {
             return this;
         } else if (is_zero()) {
@@ -255,7 +255,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger divide_by_base(final int times) {
         if (times < 0) {
-            throw new IllegalArgumentException("Division times cannot be negative!");
+            throw new IllegalArgumentException("division times cannot be negative");
         } else if (0 == times) {
             return this;
         } else if (is_zero() || times >= this.integer.length) {
@@ -274,7 +274,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger divide_by(final TightInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero()) {
             return ZERO;
@@ -294,7 +294,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger modulo(final TightInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero() || other.is_unit_abs()) {
             return ZERO;
@@ -307,7 +307,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger[] divide_by_and_modulo(final TightInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero()) {
             return new TightInteger[]{ZERO, ZERO};
@@ -351,7 +351,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger pow(final int exponent) {
         if (exponent < 0) {
-            throw new IllegalArgumentException("Exponent cannot be negative!");
+            throw new IllegalArgumentException("exponent cannot be negative");
         } else if (0 == exponent) {
             return ONE;
         } else if (1 == exponent) {

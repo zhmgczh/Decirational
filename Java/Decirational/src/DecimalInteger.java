@@ -19,7 +19,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     public static DecimalInteger get_digit(int index) {
         if (index < 0 || index > 9) {
-            throw new IllegalArgumentException("The index must be between 0 and 9.");
+            throw new IllegalArgumentException("the index must be between 0 and 9");
         }
         return numbers[index];
     }
@@ -36,14 +36,14 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     public DecimalInteger(final byte[] digits, final boolean negative) {
         if (null == digits) {
-            throw new NullPointerException("Input byte array cannot be null.");
+            throw new NullPointerException("input byte array cannot be null");
         }
         if (0 == digits.length) {
-            throw new IllegalArgumentException("Input byte array cannot be empty.");
+            throw new IllegalArgumentException("input byte array cannot be empty");
         }
         for (byte digit : digits) {
             if (digit < 0 || digit > 9) {
-                throw new NumberFormatException("Input byte array is not a valid decimal integer.");
+                throw new NumberFormatException("input byte array is not a valid decimal integer");
             }
         }
         byte[] new_digits = Arithmetic.optimize(digits);
@@ -81,11 +81,11 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
 
     public DecimalInteger(String number) {
         if (null == number) {
-            throw new NumberFormatException("Input is null.");
+            throw new NumberFormatException("input is null");
         }
         number = number.replaceAll("\\s", "");
         if (number.isEmpty()) {
-            throw new NumberFormatException("Input is empty.");
+            throw new NumberFormatException("input is empty");
         }
         int starting_point = 0;
         boolean negative = false;
@@ -96,11 +96,11 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
             starting_point = 1;
         }
         if (starting_point == number.length()) {
-            throw new NumberFormatException("Input \"" + number + "\" has no digits.");
+            throw new NumberFormatException("input \"" + number + "\" has no digits");
         }
         for (int i = starting_point; i < number.length(); ++i) {
             if (!Arithmetic.is_digit(number.charAt(i))) {
-                throw new NumberFormatException("Input \"" + number + "\" is invalid and cannot be parsed as a decimal integer.");
+                throw new NumberFormatException("input \"" + number + "\" is invalid and cannot be parsed as a decimal integer");
             }
         }
         final byte[] digits = new byte[number.length() - starting_point];
@@ -278,7 +278,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger multiply_base(final int times) {
         if (times < 0) {
-            throw new IllegalArgumentException("Multiplication times cannot be negative!");
+            throw new IllegalArgumentException("multiplication times cannot be negative");
         } else if (0 == times) {
             return this;
         } else if (is_zero()) {
@@ -297,7 +297,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger divide_by_base(final int times) {
         if (times < 0) {
-            throw new IllegalArgumentException("Division times cannot be negative!");
+            throw new IllegalArgumentException("division times cannot be negative");
         } else if (0 == times) {
             return this;
         } else if (is_zero() || times >= this.digits.length) {
@@ -316,7 +316,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger divide_by(final DecimalInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero()) {
             return ZERO;
@@ -336,7 +336,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger modulo(final DecimalInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero() || other.is_unit_abs()) {
             return ZERO;
@@ -349,7 +349,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger[] divide_by_and_modulo(final DecimalInteger other) {
         if (other.is_zero()) {
-            throw new ArithmeticException("Cannot divide by zero!");
+            throw new ArithmeticException("cannot divide by zero");
         }
         if (is_zero()) {
             return new DecimalInteger[]{ZERO, ZERO};
@@ -393,7 +393,7 @@ public final class DecimalInteger implements CustomInteger<DecimalInteger> {
     @Override
     public DecimalInteger pow(final int exponent) {
         if (exponent < 0) {
-            throw new IllegalArgumentException("Exponent cannot be negative!");
+            throw new IllegalArgumentException("exponent cannot be negative");
         } else if (0 == exponent) {
             return ONE;
         } else if (1 == exponent) {

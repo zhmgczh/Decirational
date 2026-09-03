@@ -29,7 +29,7 @@ public final class Operand implements Token {
         try {
             rational = rational_type.getConstructor(String.class, Class.class).newInstance(value, large_integer_type);
         } catch (Exception e) {
-            throw new IllegalArgumentException(value + " is not a valid rational.");
+            throw new IllegalArgumentException(value + " is not a valid rational");
         }
         this.value = rational;
         this.operand_type = OperandType.RATIONAL;

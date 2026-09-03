@@ -1,0 +1,23 @@
+Bootstrap: docker
+From: golang:1.23
+
+%files
+    ../Decirational /opt/decirational
+
+%post
+    cd /opt/decirational
+    go build -o /usr/local/bin/decirational ./cmd/decirational
+
+%runscript
+    exec decirational "$@"
+
+%labels
+    Application Decirational
+    Language Go
+    GoVersion 1.23
+
+%help
+    Decirational calculator (Go implementation).
+    Usage: apptainer run decirational.sif [--integer=decimal|tight] [--format=<format>] [--precision=N]
+    Then type arithmetic expressions (supporting + - * / % ^, parentheses,
+    [floor brackets] and |absolute value bars|) one per line on stdin.

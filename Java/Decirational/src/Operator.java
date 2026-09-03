@@ -1,5 +1,5 @@
 public enum Operator implements Token {
-    PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), MODULO('%'), POWER('^');
+    PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), INTEGER_DIVISION('÷'), MODULO('%'), POWER('^');
     private final char operator_code;
     Token left;
     Token right;
@@ -15,13 +15,18 @@ public enum Operator implements Token {
 
     @Override
     public String toString() {
-        return super.toString() + '(' + operator_code + ')';
+        // The literal syntax (e.g. "/", not the enum constant name
+        // "DIVISION") so error messages read the same as a user's own
+        // input; INTEGER_DIVISION's type_code is an internal-only marker
+        // (its real two-character syntax "//" can't be a single char), so
+        // it is special-cased here rather than shown via type_code.
+        return this == INTEGER_DIVISION ? "//" : String.valueOf(operator_code);
     }
 
     public static int get_priority(Operator operator) {
         return switch (operator) {
             case PLUS, MINUS -> 0;
-            case MULTIPLICATION, DIVISION, MODULO -> 1;
+            case MULTIPLICATION, DIVISION, INTEGER_DIVISION, MODULO -> 1;
             case POWER -> 2;
         };
     }
