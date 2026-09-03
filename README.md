@@ -42,7 +42,7 @@ $ echo '100/7' | decirational
 100/7
 $ echo '100//7' | decirational
 14
-$ echo '2^10 + |3-10| * [7.5]' | decirational --format=decimal
+$ echo '2^10 + |3-10| * [7.5]' | decirational
 1073
 ```
 
@@ -109,8 +109,8 @@ The Rust implementation lives under [`Rust/decirational`](Rust/decirational): a 
 The prebuilt Apptainer image needs no local Rust toolchain:
 
 ```bash
-echo '100/7' | apptainer run Rust/Apptainer/decirational.sif --format=decimal
-# 14.{285714}
+echo '0.1+0.2-0.3+1/3' | apptainer run Rust/Apptainer/decirational.sif
+# 1/3 - exact throughout: 0.1+0.2-0.3 cancels perfectly (no IEEE 754 residue), then adds cleanly to 1/3
 ```
 
 Or build it yourself, either via Apptainer ([`Rust/Apptainer/decirational.def`](Rust/Apptainer/decirational.def)):
@@ -126,7 +126,7 @@ or directly with Cargo:
 ```bash
 cd Rust/decirational
 cargo build --release
-echo '100/7' | ./target/release/decirational --format=decimal
+echo '0.1+0.2-0.3+1/3' | ./target/release/decirational
 ```
 
 #### Calling the package separately
@@ -138,7 +138,9 @@ use decirational::{DecimalInteger, Rational};
 
 let a = Rational::new(DecimalInteger::from_i64(1), DecimalInteger::from_i64(3))?;
 let b = Rational::new(DecimalInteger::from_i64(1), DecimalInteger::from_i64(6))?;
-println!("{}", a.plus(&b).to_decimal_string()); // 0.5
+let sum = a.plus(&b);
+println!("{}", sum);                    // 1/2 - fraction form, via Display (Rust's toString() equivalent)
+println!("{}", sum.to_decimal_string()); // 0.5 - decimal form, with {cyclic} repetends
 ```
 
 Or drive the lexer/parser directly on a raw expression string, the same way the `decirational` binary does internally:
@@ -169,13 +171,14 @@ cd Rust/decirational
 #include <stdio.h>
 
 int main(void) {
-    char *result = decirational_eval("100/7", DECIRATIONAL_BACKEND_DECIMAL,
-                                      DECIRATIONAL_FORMAT_DECIMAL, 0);
+    // Exact throughout: 0.1+0.2-0.3 cancels perfectly (no IEEE 754 residue), then adds cleanly to 1/3.
+    char *result = decirational_eval("0.1+0.2-0.3+1/3", DECIRATIONAL_BACKEND_DECIMAL,
+                                      DECIRATIONAL_FORMAT_DEFAULT, 0);
     if (!result) {
         fprintf(stderr, "error: %s\n", decirational_last_error());
         return 1;
     }
-    printf("%s\n", result);  // 14.{285714}
+    printf("%s\n", result);  // 1/3
     decirational_string_free(result);
     return 0;
 }
@@ -192,8 +195,10 @@ For finer-grained control than one-shot `decirational_eval`, build and combine `
 DecirationalRational *a = decirational_rational_parse("1/3", DECIRATIONAL_BACKEND_DECIMAL);
 DecirationalRational *b = decirational_rational_parse("1/6", DECIRATIONAL_BACKEND_DECIMAL);
 DecirationalRational *sum = decirational_rational_add(a, b);
-char *s = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0); // "0.5"
-decirational_string_free(s);
+char *s1 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DEFAULT, 0);  // "1/2" - fraction form
+char *s2 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0);  // "0.5" - decimal form
+decirational_string_free(s1);
+decirational_string_free(s2);
 decirational_rational_free(sum);
 decirational_rational_free(a);
 decirational_rational_free(b);
@@ -210,8 +215,8 @@ The Go implementation lives under [`Go/Decirational`](Go/Decirational) as the im
 #### Running it
 
 ```bash
-echo '100/7' | apptainer run Go/Apptainer/decirational.sif --format=decimal
-# 14.{285714}
+echo '0.1+0.2-0.3+1/3' | apptainer run Go/Apptainer/decirational.sif
+# 1/3 - exact throughout: 0.1+0.2-0.3 cancels perfectly (no IEEE 754 residue), then adds cleanly to 1/3
 ```
 
 Or build it yourself, either via Apptainer ([`Go/Apptainer/decirational.def`](Go/Apptainer/decirational.def)):
@@ -227,7 +232,7 @@ or directly with Go:
 ```bash
 cd Go/Decirational
 go build -o decirational ./cmd/decirational
-echo '100/7' | ./decirational --format=decimal
+echo '0.1+0.2-0.3+1/3' | ./decirational
 ```
 
 #### Calling the package separately
@@ -237,7 +242,9 @@ import dec "decirational"
 
 a, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(3))
 b, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(6))
-fmt.Println(a.Plus(b).ToDecimalString()) // 0.5
+sum := a.Plus(b)
+fmt.Println(sum)                    // 1/2 - fraction form, via String() (Go's toString() equivalent)
+fmt.Println(sum.ToDecimalString())  // 0.5 - decimal form, with {cyclic} repetends
 ```
 
 Or drive the lexer/parser directly on a raw expression string:
@@ -262,8 +269,8 @@ The Java implementation lives under [`Java/Decirational`](Java/Decirational). It
 The prebuilt Apptainer image needs no local JDK:
 
 ```bash
-echo '100/7' | apptainer run Java/Apptainer/decirational.sif --format=decimal
-# 14.{285714}
+echo '0.1+0.2-0.3+1/3' | apptainer run Java/Apptainer/decirational.sif
+# 1/3 - exact throughout: 0.1+0.2-0.3 cancels perfectly (no IEEE 754 residue), then adds cleanly to 1/3
 ```
 
 Or build it yourself, either via Apptainer ([`Java/Apptainer/decirational.def`](Java/Apptainer/decirational.def)):
@@ -287,11 +294,11 @@ java -cp out Main
 The sources have no package declaration, so you can drop the `.java` files from `Java/Decirational/src` straight into your own project (or compile them into a `.jar`) and call the API directly, without going through the REPL:
 
 ```java
-Rational<DecimalInteger> a = new Rational<>("123.4567890123456789", DecimalInteger.class);
-Rational<DecimalInteger> b = new Rational<>("0.0000000000000001", DecimalInteger.class);
+Rational<DecimalInteger> a = new Rational<>("1/3", DecimalInteger.class);
+Rational<DecimalInteger> b = new Rational<>("1/6", DecimalInteger.class);
 Rational<DecimalInteger> result = a.plus(b);
-System.out.println(result);                    // fraction form, via toString()
-System.out.println(result.to_decimal_string()); // decimal form, with {cyclic} repetends
+System.out.println(result);                    // 1/2 - fraction form, via toString()
+System.out.println(result.to_decimal_string()); // 0.5 - decimal form, with {cyclic} repetends
 ```
 
 Or drive the lexer/parser directly on a raw expression string, the same way `Main` does internally:
