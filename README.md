@@ -316,6 +316,50 @@ Core classes:
 * `Lexer<T>` — tokenizes an expression string into `Token`s.
 * `Parser<T>` — a recursive-descent evaluator that turns tokens into a `Rational<T>`.
 
+## 📚 API Reference
+
+The per-language sections above cover how to build/run each binary and how the API looks in that language's idiom. This section is the language-agnostic method reference for the two core types shared identically across Rust, Go, and Java.
+
+### `CustomInteger`: the shared DecimalInteger / TightInteger API
+
+`DecimalInteger` and `TightInteger` are two interchangeable backends (see [`--integer`](#--integer-decimalinteger-vs-tightinteger) above) for the exact same interface — `CustomInteger<T>` in Java, `CustomInteger[T]` in Go, and the `CustomInteger` trait in Rust — so switching backends never changes which operations are available, only how fast they run. Method names below are Java/Rust; Go exposes the identical set in PascalCase (`is_zero` → `IsZero`, `divide_by_base` → `DivideByBase`, and so on):
+
+| Method(s) | Meaning |
+|---|---|
+| `is_zero`, `is_one`, `is_unit_abs` | is the value `0`, `1`, or `±1` |
+| `is_positive`, `is_negative` | sign checks (`0` is neither) |
+| `negate`, `abs` | unary negation / absolute value |
+| `plus`, `minus`, `multiply` | addition, subtraction, multiplication |
+| `divide_by`, `modulo` | truncating-toward-zero integer division and its paired remainder — `a.divide_by(b) * b + a.modulo(b) == a`, the same pairing the calculator's `//`/`%` operators use |
+| `divide_by_and_modulo` | both of the above in a single pass, for when you need both results |
+| `gcd`, `lcm` | greatest common divisor / least common multiple |
+| `pow(exponent)` | integer exponentiation |
+| `multiply_base(n)` / `multiply_base_once`, `divide_by_base(n)` / `divide_by_base_once` | shift the value by `n` "digits" in its own base — decimal digits (×10ⁿ) for `DecimalInteger`, base-2³² words (×(2³²)ⁿ) for `TightInteger` — the fast path the parser uses internally for decimal-point placement instead of general-purpose multiplication/division |
+| `to_tight_integer` / `to_decimal_integer` | convert losslessly to the other backend |
+| `get_digit(0-9)` (`digit` in Rust) | the interned constant for a single digit, e.g. `DecimalInteger.get_digit(7)` is `7` |
+| `compareTo`/`Compare`, `equals`/`Equals`, `toString`/`String`/`Display` | ordering, equality, and text conversion |
+
+Construction covers every signed integer width native to that language (`byte`/`short`/`int`/`long` in Java, `int32`/`int64` in Go and Rust) plus parsing directly from a decimal string — the same literal syntax the calculator itself accepts (`new DecimalInteger("12345")` in Java, `DecimalInteger::parse("12345")` in Rust, `dec.ParseDecimalInteger("12345")` in Go). Raw digit/word arrays are also accepted (`new DecimalInteger(digits, negative)`, `DecimalInteger::from_digits`, `dec.NewDecimalInteger(digits, negative)`) for callers building a value digit-by-digit rather than from a string or a native integer.
+
+### `Rational<T>`: the exact-fraction API
+
+Every value the calculator computes is a `Rational<T>` — an exact fraction over a `CustomInteger` numerator and denominator, always kept reduced to lowest terms with the sign carried on the numerator only (the denominator is always positive). Method names below are Java/Rust; Go again exposes the identical set in PascalCase (`is_zero` → `IsZero`, `divide_by` → `DivideBy`, and so on):
+
+| Method(s) | Meaning |
+|---|---|
+| `get_numerator`, `get_denominator` | the reduced numerator/denominator, sign included on the numerator |
+| `get_numerator_abs`, `get_denominator_abs` | the same, with the sign stripped |
+| `is_integer` | is the denominator `1` |
+| `is_zero`, `is_positive`, `is_negative` | sign checks on the value as a whole |
+| `negate`, `abs` | unary negation / absolute value |
+| `reciprocal` | `1/x` — swaps numerator and denominator, carrying the sign back to the numerator; an error/panic for `0`, same as the calculator dividing by zero |
+| `plus`, `minus`, `multiply`, `divide_by` | the calculator's `+ - * /`, always exact — no rounding at any intermediate step |
+| `pow(exponent)` | exponentiation; a negative exponent is `reciprocal().pow(-exponent)`, matching `^` in the expression language |
+| `compareTo`/`Compare`, `equals`/`Equals` | ordering and equality by value (`1/2` equals `2/4`) |
+| `toString`/`String`/`Display`, `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` | text conversion — one method per [`--format`](#--format-how-the-result-is-rendered) value above |
+
+Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`from_integer`/`NewRationalFromInteger`, denominator `1`), or — in Java and Go — a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger.class)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go). The Rust version exposes the same string parsing as the free function `parse_rational` rather than an inherent method, since `Rational<T>` doesn't implement `FromStr`.
+
 ## ⚙️ Concurrency & Architecture
 
 All three implementations are built specifically for modern, high-concurrency software architectures:
