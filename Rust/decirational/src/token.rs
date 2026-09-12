@@ -35,19 +35,6 @@ pub enum Token<T: CustomInteger> {
     AbsoluteBar,
 }
 
-impl<T: CustomInteger> Token<T> {
-    /// Mirrors Java's Operator.get_priority (unused by Parser's
-    /// recursive-descent grammar, kept for API parity with the Java Operator enum).
-    pub fn operator_priority(&self) -> Option<i32> {
-        match self {
-            Token::Plus | Token::Minus => Some(0),
-            Token::Multiply | Token::Divide | Token::IntegerDivide | Token::Modulo => Some(1),
-            Token::Power => Some(2),
-            _ => None,
-        }
-    }
-}
-
 impl<T: CustomInteger> fmt::Display for Token<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

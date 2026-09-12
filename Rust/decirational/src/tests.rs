@@ -655,27 +655,57 @@ fn parser_error_cases() {
     assert!(parser.parse(vec![]).is_err(), "empty token list should be rejected");
 }
 
+// Expression-depth limit: a deeply nested/chained expression must be
+// rejected as a normal Err instead of crashing the whole process with an
+// uncatchable "fatal runtime error: stack overflow" (not a panic -
+// catch_unwind cannot intercept it). Regression test for a real DoS: any of
+// these three independent recursion paths (bracket/floor/absolute nesting,
+// chained unary +/-, chained right-associative ^) previously took down the
+// whole interpreter - an abort, not even a panic - on a single malicious
+// input line.
+#[test]
+fn parser_expression_depth_limit_rejects_deep_input() {
+    let lexer = test_lexer();
+    let deep_exprs = [
+        format!("{}1{}", "(".repeat(10_000), ")".repeat(10_000)),
+        format!("{}5", "-".repeat(10_000)),
+        // Base 1 (not 2): 1^1^1^...^1 never produces an exponent outside
+        // int range, so this exercises the depth guard itself rather than
+        // coincidentally failing "exponent out of range" first.
+        vec!["1"; 10_000].join("^"),
+    ];
+    for expr in &deep_exprs {
+        let mut parser = Parser::<TightInteger>::new();
+        let outcome = lexer.get_tokens(expr).and_then(|tokens| parser.parse(tokens));
+        match outcome {
+            Err(e) => assert!(e.to_string().contains("nested too deeply"), "expected a 'nested too deeply' error, got: {}", e),
+            Ok(_) => panic!("expected an error for a 10,000-deep expression"),
+        }
+    }
+}
+
+#[test]
+fn parser_expression_depth_limit_allows_moderate_nesting() {
+    let expr = format!("{}1{}", "(".repeat(500), ")".repeat(500));
+    assert_eq!(eval(&expr), "1", "nesting well under the depth limit should still work");
+}
+
 // ===================== round_to boundary panics (Rational only) =====================
 
 #[test]
 fn rational_round_to_min_int_panics() {
-    // to_truncate/round/ceil/floor_decimal_string special-case i32::MIN the
-    // same way Java special-cases Integer.MIN_VALUE, to avoid overflowing
-    // `-round_to`. This is the one place the Rust port panics rather than
-    // returning Result, mirroring Java's unchecked IllegalArgumentException -
-    // it is a caller-contract violation (an absurd precision argument), not
-    // a data-dependent failure the REPL needs to recover from mid-expression.
+    // to_truncate/round/ceil/floor_decimal_string special-case i32::MIN,
+    // since it has no positive counterpart to negate `round_to` into - "the
+    // minimum representable precision" isn't representable, so it is
+    // rejected outright rather than producing some arbitrary result. This is
+    // the one place the Rust port panics rather than returning Result,
+    // mirroring Java's unchecked IllegalArgumentException - it is a
+    // caller-contract violation (an absurd precision argument), not a
+    // data-dependent failure the REPL needs to recover from mid-expression.
     //
     // All three round_to-taking formatters panic for i32::MIN regardless of
-    // the number's magnitude - matching Java (where negating
-    // Integer.MIN_VALUE overflows back to itself, so its "does round_to
-    // already exceed the digit count" guard is permanently false for
-    // MIN_VALUE) and Go (identical, via its own native int overflow).
-    // to_truncate_decimal_string uses round_to.wrapping_neg() specifically
-    // to reproduce that overflow, rather than a plain `-round_to` or a
-    // widening cast, either of which would let this guard swallow the
-    // panic for ordinary-sized numbers and silently diverge from the other
-    // two ports.
+    // the number's magnitude, matching Java and Go, each of which checks
+    // this up front the same way.
     assert_panics("truncate at i32::MIN panics", || {
         let _ = r_int(5).to_truncate_decimal_string(i32::MIN);
     });

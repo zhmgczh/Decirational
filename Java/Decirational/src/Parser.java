@@ -1,12 +1,29 @@
 import java.util.ArrayList;
+import java.util.function.IntFunction;
 
 public final class Parser<T extends CustomInteger<T>> {
-    private final Class<T> large_integer_type;
+    // parse_unary is the one point every recursive production in this
+    // grammar passes through at least once per level of nesting: directly
+    // for a chain of unary +/- (parse_unary calling itself), for bracket/
+    // floor/absolute-value nesting (via the expression->term->unary->power
+    // ->primary chain that runs once per level before the next '(', '[' or
+    // '|'), and for right-associative '^' chains (parse_power calling
+    // parse_unary for its exponent, which can lead straight back into
+    // parse_power). Java's call stack has no bound of its own worth relying
+    // on - a deeply nested or chained expression overflows it with an
+    // uncatchable StackOverflowError (an Error, not a RuntimeException, so
+    // the REPL's catch block never sees it and the whole process dies) well
+    // before this limit, so this is checked well short of that: crafting a
+    // one-line expression this deep is trivial for an attacker, and no
+    // legitimate expression needs anywhere near it.
+    private static final int MAX_EXPRESSION_DEPTH = 1000;
+    private final IntFunction<T> from_int;
     private ArrayList<Token> tokens;
     private int position;
+    private int depth;
 
-    public Parser(final Class<T> large_integer_type) {
-        this.large_integer_type = large_integer_type;
+    public Parser(final IntFunction<T> from_int) {
+        this.from_int = from_int;
     }
 
     public Rational<T> parse(final ArrayList<Token> tokens) {
@@ -15,6 +32,7 @@ public final class Parser<T extends CustomInteger<T>> {
         }
         this.tokens = tokens;
         this.position = 0;
+        this.depth = 0;
         final Rational<T> result = parse_expression();
         if (position != tokens.size()) {
             throw new IllegalArgumentException("unexpected token: " + tokens.get(position));
@@ -84,15 +102,23 @@ public final class Parser<T extends CustomInteger<T>> {
     }
 
     private Rational<T> parse_unary() {
-        if (check(Operator.PLUS)) {
-            advance();
-            return parse_unary();
+        ++depth;
+        try {
+            if (depth > MAX_EXPRESSION_DEPTH) {
+                throw new IllegalArgumentException("expression nested too deeply (max depth " + MAX_EXPRESSION_DEPTH + ")");
+            }
+            if (check(Operator.PLUS)) {
+                advance();
+                return parse_unary();
+            }
+            if (check(Operator.MINUS)) {
+                advance();
+                return parse_unary().negate();
+            }
+            return parse_power();
+        } finally {
+            --depth;
         }
-        if (check(Operator.MINUS)) {
-            advance();
-            return parse_unary().negate();
-        }
-        return parse_power();
     }
 
     private Rational<T> parse_power() {
@@ -148,22 +174,17 @@ public final class Parser<T extends CustomInteger<T>> {
 
     private Rational<T> to_rational(final Operand operand) {
         final Object value = operand.get_value();
-        if (value instanceof Rational) {
-            @SuppressWarnings("unchecked") final Rational<T> rational = (Rational<T>) value;
-            return rational;
-        }
-        if (large_integer_type.isInstance(value)) {
-            return new Rational<>(large_integer_type.cast(value));
-        }
-        if (value instanceof Integer integer) {
-            try {
-                final T large_integer = large_integer_type.getConstructor(int.class).newInstance(integer);
-                return new Rational<>(large_integer);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("cannot instantiate integer type from int value", e);
+        return switch (operand.get_operand_type()) {
+            case RATIONAL -> {
+                @SuppressWarnings("unchecked") final Rational<T> rational = (Rational<T>) value;
+                yield rational;
             }
-        }
-        throw new IllegalArgumentException("unrecognized operand value: " + value);
+            case LARGE_INTEGER -> {
+                @SuppressWarnings("unchecked") final T large_integer = (T) value;
+                yield new Rational<>(large_integer);
+            }
+            case INTEGER -> new Rational<>(from_int.apply((Integer) value));
+        };
     }
 
     private T floor(final Rational<T> rational) {

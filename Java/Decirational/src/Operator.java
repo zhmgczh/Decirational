@@ -1,8 +1,6 @@
 public enum Operator implements Token {
     PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), INTEGER_DIVISION('÷'), MODULO('%'), POWER('^');
     private final char operator_code;
-    Token left;
-    Token right;
 
     Operator(char operator_code) {
         this.operator_code = operator_code;
@@ -21,13 +19,5 @@ public enum Operator implements Token {
         // (its real two-character syntax "//" can't be a single char), so
         // it is special-cased here rather than shown via type_code.
         return this == INTEGER_DIVISION ? "//" : String.valueOf(operator_code);
-    }
-
-    public static int get_priority(Operator operator) {
-        return switch (operator) {
-            case PLUS, MINUS -> 0;
-            case MULTIPLICATION, DIVISION, INTEGER_DIVISION, MODULO -> 1;
-            case POWER -> 2;
-        };
     }
 }

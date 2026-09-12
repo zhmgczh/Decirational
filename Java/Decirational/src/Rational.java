@@ -1,6 +1,7 @@
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.function.Function;
 
 public final class Rational<T extends CustomInteger<T>> implements Comparable<Rational<T>> {
     private final T numerator;
@@ -94,12 +95,12 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         this.denominator = rational.denominator;
     }
 
-    public Rational(String string, final Class<T> integer_type) {
+    public Rational(String string, final Function<String, T> from_string) {
         if (null == string) {
             throw new IllegalArgumentException("input is null");
         }
-        if (null == integer_type) {
-            throw new IllegalArgumentException("integer type is null");
+        if (null == from_string) {
+            throw new IllegalArgumentException("integer constructor is null");
         }
         string = string.replaceAll("\\s", "");
         if (string.isEmpty()) {
@@ -159,9 +160,9 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             T numerator;
             final T denominator;
             try {
-                numerator = integer_type.getConstructor(String.class).newInstance(numerator_string);
-                denominator = integer_type.getConstructor(String.class).newInstance(denominator_string);
-            } catch (Exception e) {
+                numerator = from_string.apply(numerator_string);
+                denominator = from_string.apply(denominator_string);
+            } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("cannot instantiate a rational from the given integer type", e);
             }
             if (denominator.is_zero()) {
@@ -179,9 +180,9 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             T numerator;
             final T denominator;
             try {
-                numerator = integer_type.getConstructor(String.class).newInstance(numerator_string);
-                denominator = integer_type.getConstructor(String.class).newInstance(denominator_string);
-            } catch (Exception e) {
+                numerator = from_string.apply(numerator_string);
+                denominator = from_string.apply(denominator_string);
+            } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("cannot instantiate a rational from the given integer type", e);
             }
             final T gcd = numerator.gcd(denominator);
@@ -200,11 +201,11 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             final T cyclic_numerator;
             final T cyclic_denominator;
             try {
-                finite_numerator = integer_type.getConstructor(String.class).newInstance(finite_numerator_string);
-                finite_denominator = integer_type.getConstructor(String.class).newInstance(finite_denominator_string);
-                cyclic_numerator = integer_type.getConstructor(String.class).newInstance(cyclic_numerator_string);
-                cyclic_denominator = integer_type.getConstructor(String.class).newInstance(cyclic_denominator_string);
-            } catch (Exception e) {
+                finite_numerator = from_string.apply(finite_numerator_string);
+                finite_denominator = from_string.apply(finite_denominator_string);
+                cyclic_numerator = from_string.apply(cyclic_numerator_string);
+                cyclic_denominator = from_string.apply(cyclic_denominator_string);
+            } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("cannot instantiate a rational from the given integer type", e);
             }
             final Rational<T> finite = new Rational<>(finite_numerator, finite_denominator, true);
@@ -476,8 +477,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         while (input.hasNextLine()) {
             final String a_str = input.nextLine().trim();
             final String b_str = input.nextLine().trim();
-            final Rational<TightInteger> a = new Rational<>(a_str, TightInteger.class);
-            final Rational<TightInteger> b = new Rational<>(b_str, TightInteger.class);
+            final Rational<TightInteger> a = new Rational<>(a_str, TightInteger::new);
+            final Rational<TightInteger> b = new Rational<>(b_str, TightInteger::new);
             System.out.println(a);
             System.out.println(b);
             System.out.println(a.to_decimal_string());

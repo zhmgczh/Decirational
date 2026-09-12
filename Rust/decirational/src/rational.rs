@@ -22,17 +22,11 @@ impl<T: CustomInteger> Rational<T> {
     }
 
     fn get_five(&self) -> T {
-        let one = self.denominator.pow(0).expect("pow(0) never fails");
-        let two = one.plus(&one);
-        let four = two.plus(&two);
-        four.plus(&one)
+        T::from_i64(5)
     }
 
     fn get_ten(&self) -> T {
-        let one = self.denominator.pow(0).expect("pow(0) never fails");
-        let two = one.plus(&one);
-        let four = two.plus(&two);
-        four.multiply(&two).plus(&two)
+        T::from_i64(10)
     }
 
     fn reduced(numerator: T, denominator: T) -> Self {
@@ -126,25 +120,23 @@ impl<T: CustomInteger> Rational<T> {
     }
 
     pub fn to_truncate_decimal_string(&self, round_to: i32) -> String {
+        // Checked up front, like the i32::MIN guards in to_round_decimal_string
+        // and to_ceil_decimal_string: i32::MIN has no positive counterpart
+        // ("the minimum representable precision" isn't representable), so
+        // there is nothing meaningful to truncate to and every port rejects
+        // it. Checking it before negating anything (rather than negating
+        // first and relying on how that happens to overflow) means the rest
+        // of this function can just negate round_to normally.
+        if round_to == i32::MIN {
+            panic!("cannot round to the minimum representable precision");
+        }
         let ten = self.get_ten();
         let (whole_integer, remainder0) = self.numerator.abs().divide_by_and_modulo(&self.denominator).expect("denominator is never zero");
         let whole_integer_str = whole_integer.to_string();
         let sign = if self.numerator.is_negative() { "-" } else { "" };
-        // Uses wrapping_neg (not a plain `-`, and not a widening cast) so
-        // that round_to == i32::MIN reproduces Java's `-round_to` overflow
-        // (negating Integer.MIN_VALUE wraps back to itself in Java's 32-bit
-        // int, keeping this guard permanently false and always falling
-        // through to the explicit i32::MIN panic below, regardless of the
-        // number's magnitude) and Go's identical behavior from its own
-        // native int overflow. Widening to a wider integer type here would
-        // make the guard trigger for ordinary numbers instead, silently
-        // diverging from both other ports for this input.
-        if (whole_integer_str.len() as i32) <= round_to.wrapping_neg() {
+        if (whole_integer_str.len() as i32) <= -round_to {
             return format!("{}0", sign);
         } else if round_to < 0 {
-            if round_to == i32::MIN {
-                panic!("cannot round to the minimum representable precision");
-            }
             let shift_base = ten.pow(-round_to).expect("positive exponent never fails");
             let result = whole_integer.divide_by(&shift_base).expect("shift_base is never zero").multiply(&shift_base);
             return format!("{}{}", sign, result);

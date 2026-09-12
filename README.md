@@ -238,7 +238,7 @@ echo '0.1+0.2-0.3+1/3' | ./decirational
 #### Calling the package separately
 
 ```go
-import dec "decirational"
+import dec "github.com/zhmgczh/Decirational"
 
 a, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(3))
 b, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(6))
@@ -294,8 +294,8 @@ java -cp out Main
 The sources have no package declaration, so you can drop the `.java` files from `Java/Decirational/src` straight into your own project (or compile them into a `.jar`) and call the API directly, without going through the REPL:
 
 ```java
-Rational<DecimalInteger> a = new Rational<>("1/3", DecimalInteger.class);
-Rational<DecimalInteger> b = new Rational<>("1/6", DecimalInteger.class);
+Rational<DecimalInteger> a = new Rational<>("1/3", DecimalInteger::new);
+Rational<DecimalInteger> b = new Rational<>("1/6", DecimalInteger::new);
 Rational<DecimalInteger> result = a.plus(b);
 System.out.println(result);                    // 1/2 - fraction form, via toString()
 System.out.println(result.to_decimal_string()); // 0.5 - decimal form, with {cyclic} repetends
@@ -304,8 +304,8 @@ System.out.println(result.to_decimal_string()); // 0.5 - decimal form, with {cyc
 Or drive the lexer/parser directly on a raw expression string, the same way `Main` does internally:
 
 ```java
-Lexer<TightInteger> lexer = new Lexer<>(TightInteger.class, (Class<Rational<TightInteger>>) (Class<?>) Rational.class);
-Parser<TightInteger> parser = new Parser<>(TightInteger.class);
+Lexer<TightInteger> lexer = new Lexer<>(TightInteger::new);
+Parser<TightInteger> parser = new Parser<>(TightInteger::new);
 Rational<TightInteger> result = parser.parse(lexer.get_tokens("(1+2)*|-4|^2/[7.5]"));
 ```
 
@@ -358,7 +358,7 @@ Every value the calculator computes is a `Rational<T>` — an exact fraction ove
 | `compareTo`/`Compare`, `equals`/`Equals` | ordering and equality by value (`1/2` equals `2/4`) |
 | `toString`/`String`/`Display`, `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` | text conversion — one method per [`--format`](#--format-how-the-result-is-rendered) value above |
 
-Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`from_integer`/`NewRationalFromInteger`, denominator `1`), or — in Java and Go — a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger.class)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go). The Rust version exposes the same string parsing as the free function `parse_rational` rather than an inherent method, since `Rational<T>` doesn't implement `FromStr`.
+Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`from_integer`/`NewRationalFromInteger`, denominator `1`), or — in Java and Go — a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger::new)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go). The Rust version exposes the same string parsing as the free function `parse_rational` rather than an inherent method, since `Rational<T>` doesn't implement `FromStr`.
 
 ## ⚙️ Concurrency & Architecture
 

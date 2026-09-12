@@ -1,15 +1,14 @@
 import java.util.ArrayList;
 
 public final class ParserTest {
-    @SuppressWarnings("unchecked")
     private static Lexer<TightInteger> new_lexer() {
-        return new Lexer<>(TightInteger.class, (Class<Rational<TightInteger>>) (Class<?>) Rational.class);
+        return new Lexer<>(TightInteger::new);
     }
 
     public static TestFramework run() {
         final TestFramework t = new TestFramework("Parser");
         final Lexer<TightInteger> lexer = new_lexer();
-        final Parser<TightInteger> parser = new Parser<>(TightInteger.class);
+        final Parser<TightInteger> parser = new Parser<>(TightInteger::new);
 
         // eval(expr) returns the decimal-string result of lexing+parsing.
         final java.util.function.Function<String, String> eval = expr -> parser.parse(lexer.get_tokens(expr)).to_decimal_string();
@@ -95,6 +94,21 @@ public final class ParserTest {
         t.check_throws(IllegalArgumentException.class, () -> eval.apply("[5"), "unmatched opening floor bracket is rejected");
         t.check_throws(IllegalArgumentException.class, () -> eval.apply("|5"), "unmatched opening absolute-value bar is rejected");
         t.check_throws(IllegalArgumentException.class, () -> eval.apply("2#3"), "illegal characters surface as errors through the full pipeline");
+
+        // Expression-depth limit: a deeply nested/chained expression must be
+        // rejected as a normal, catchable error instead of crashing the
+        // whole process with an uncatchable StackOverflowError. Regression
+        // test for a real DoS: any of these three independent recursion
+        // paths (bracket/floor/absolute nesting, chained unary +/-, chained
+        // right-associative ^) previously took down the whole interpreter on
+        // a single malicious input line.
+        t.check_throws(IllegalArgumentException.class, () -> eval.apply("(".repeat(10_000) + "1" + ")".repeat(10_000)), "deeply nested parentheses are rejected, not a StackOverflowError");
+        t.check_throws(IllegalArgumentException.class, () -> eval.apply("-".repeat(10_000) + "5"), "a long chain of unary minus is rejected, not a StackOverflowError");
+        // Base 1 (not 2): 1^1^1^...^1 never produces an exponent outside int
+        // range, so this exercises the depth guard itself rather than
+        // coincidentally failing "exponent out of range" first.
+        t.check_throws(IllegalArgumentException.class, () -> eval.apply(String.join("^", java.util.Collections.nCopies(10_000, "1"))), "a long chain of ^ is rejected, not a StackOverflowError");
+        t.check_equals("1", eval.apply("(".repeat(500) + "1" + ")".repeat(500)), "nesting well under the depth limit still works");
 
         return t;
     }

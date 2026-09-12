@@ -6,11 +6,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 
-	dec "decirational"
+	dec "github.com/zhmgczh/Decirational"
 )
 
 const usage = `Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N]
@@ -67,9 +68,9 @@ func main() {
 	var err error
 	switch integerType {
 	case "decimal":
-		err = run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, format, precision)
+		err = run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, format, precision, os.Stdin, os.Stdout)
 	case "tight":
-		err = run(dec.NewTightIntegerFromInt32, dec.ParseTightInteger, format, precision)
+		err = run(dec.NewTightIntegerFromInt32, dec.ParseTightInteger, format, precision, os.Stdin, os.Stdout)
 	default:
 		err = fmt.Errorf("unknown integer type: %s (expected 'decimal' or 'tight')", integerType)
 	}
@@ -84,27 +85,45 @@ func fail(message string) {
 	os.Exit(1)
 }
 
-func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error), format string, precision int32) error {
+// run reads one arithmetic expression per line from in and writes its value
+// (or an "Error: ..." line) to out, matching Java's Scanner/nextLine and
+// Rust's BufRead::lines: an expression line is read in full no matter how
+// long it is, bounded only by available memory.
+//
+// This deliberately does NOT use bufio.Scanner: its default Buffer caps a
+// single line at bufio.MaxScanTokenSize (64 KiB), and exceeding that makes
+// Scan() return false as if the input had simply ended - silently dropping
+// the oversized line (and every line after it) with no error and an exit
+// code of 0, unless the caller separately checks Scanner.Err(). Java and
+// Rust have no such cap, so a long expression that they evaluate normally
+// would previously vanish here.  bufio.Reader.ReadString has no analogous
+// limit: it grows its buffer to fit whatever it reads.
+func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error), format string, precision int32, in io.Reader, out io.Writer) error {
 	formatter, err := makeFormatter[T](format, precision)
 	if err != nil {
 		return err
 	}
 	lexer := dec.NewLexer[T](fromInt32, parseInt)
 	parser := dec.NewParser[T]()
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		expression := scanner.Text()
-		if strings.TrimSpace(expression) == "" {
-			continue
+	reader := bufio.NewReader(in)
+	for {
+		line, readErr := reader.ReadString('\n')
+		expression := strings.TrimRight(line, "\r\n")
+		if strings.TrimSpace(expression) != "" {
+			output, err := evalLine(lexer, parser, formatter, expression)
+			if err != nil {
+				fmt.Fprintln(out, "Error: "+err.Error())
+			} else {
+				fmt.Fprintln(out, output)
+			}
 		}
-		output, err := evalLine(lexer, parser, formatter, expression)
-		if err != nil {
-			fmt.Println("Error: " + err.Error())
-			continue
+		if readErr != nil {
+			if readErr == io.EOF {
+				return nil
+			}
+			return readErr
 		}
-		fmt.Println(output)
 	}
-	return nil
 }
 
 // evalLine covers the same scope as Java's per-line try/catch: tokenizing,

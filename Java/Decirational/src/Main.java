@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 
 public final class Main {
     private static final String USAGE = """
@@ -55,8 +56,8 @@ public final class Main {
         }
         try {
             switch (integer_type_name) {
-                case "decimal" -> run(DecimalInteger.class, format, precision);
-                case "tight" -> run(TightInteger.class, format, precision);
+                case "decimal" -> run(DecimalInteger::new, DecimalInteger::new, format, precision);
+                case "tight" -> run(TightInteger::new, TightInteger::new, format, precision);
                 default -> throw new IllegalArgumentException("unknown integer type: " + integer_type_name + " (expected 'decimal' or 'tight')");
             }
         } catch (final IllegalArgumentException e) {
@@ -66,12 +67,11 @@ public final class Main {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends CustomInteger<T>> void run(final Class<T> integer_type, final String format, final int precision) {
+    private static <T extends CustomInteger<T>> void run(final Function<String, T> from_string, final IntFunction<T> from_int, final String format, final int precision) {
         final Function<Rational<T>, String> formatter = make_formatter(format, precision);
         final Scanner input = new Scanner(System.in);
-        final Lexer<T> lexer = new Lexer<>(integer_type, (Class<Rational<T>>) (Class<?>) Rational.class);
-        final Parser<T> parser = new Parser<>(integer_type);
+        final Lexer<T> lexer = new Lexer<>(from_string);
+        final Parser<T> parser = new Parser<>(from_int);
         while (input.hasNextLine()) {
             final String expression = input.nextLine();
             if (expression.isBlank()) {

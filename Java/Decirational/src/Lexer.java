@@ -2,10 +2,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Scanner;
+import java.util.function.Function;
 
 public final class Lexer<T extends CustomInteger<T>> {
-    private final Class<T> large_integer_type;
-    private final Class<Rational<T>> rational_type;
+    private final Function<String, T> from_string;
     private static final HashMap<Character, LinkedHashSet<Token>> char_table = new HashMap<>();
     private static final Token[] normal_tokens = {Parenthesis.LEFT_PARENTHESIS, Parenthesis.RIGHT_PARENTHESIS, Floor.LEFT_FLOOR, Floor.RIGHT_FLOOR, Absolute.ABSOLUTE, Operator.PLUS, Operator.MINUS, Operator.MULTIPLICATION, Operator.DIVISION, Operator.MODULO, Operator.POWER};
 
@@ -33,16 +33,15 @@ public final class Lexer<T extends CustomInteger<T>> {
         char_table.put(Arithmetic.cyclic_end, rational_set);
     }
 
-    public Lexer(final Class<T> large_integer_type, final Class<Rational<T>> rational_type) {
-        this.large_integer_type = large_integer_type;
-        this.rational_type = rational_type;
+    public Lexer(final Function<String, T> from_string) {
+        this.from_string = from_string;
     }
 
     private void record_token(String expression, LinkedHashSet<Token> set, int left_index, int right_index, ArrayList<Token> tokens) {
         final Token token = set.getFirst();
         if (token.getClass() == OperandType.class) {
             final String value = expression.substring(left_index, right_index);
-            final Operand operand = new Operand(value, large_integer_type, rational_type);
+            final Operand operand = new Operand(value, from_string);
             tokens.add(operand);
         } else if (token == Operator.DIVISION) {
             // Pair up consecutive '/' characters into "//" (integer division)
@@ -73,6 +72,9 @@ public final class Lexer<T extends CustomInteger<T>> {
         }
         final ArrayList<Token> tokens = new ArrayList<>();
         LinkedHashSet<Token> set = char_table.get(expression.charAt(0));
+        if (null == set) {
+            throw new IllegalArgumentException("illegal character " + expression.charAt(0) + " in expression: " + expression);
+        }
         int left_index = 0;
         int right_index = 1;
         while (right_index < expression.length()) {
@@ -98,7 +100,7 @@ public final class Lexer<T extends CustomInteger<T>> {
 
     public static void main(final String[] args) {
         final Scanner input = new Scanner(System.in);
-        @SuppressWarnings("unchecked") final Lexer<TightInteger> lexer = new Lexer<>(TightInteger.class, (Class<Rational<TightInteger>>) (Class<?>) Rational.class);
+        final Lexer<TightInteger> lexer = new Lexer<>(TightInteger::new);
         while (input.hasNextLine()) {
             final String expression = input.nextLine();
             System.out.println(lexer.get_tokens(expression));

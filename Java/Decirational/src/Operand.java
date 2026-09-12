@@ -1,8 +1,10 @@
+import java.util.function.Function;
+
 public final class Operand implements Token {
     private final OperandType operand_type;
     private final Object value;
 
-    <T extends CustomInteger<T>> Operand(String value, final Class<T> large_integer_type, final Class<Rational<T>> rational_type) {
+    <T extends CustomInteger<T>> Operand(String value, final Function<String, T> from_string) {
         Integer integer;
         try {
             integer = Integer.parseInt(value);
@@ -16,8 +18,8 @@ public final class Operand implements Token {
         }
         T large_integer;
         try {
-            large_integer = large_integer_type.getConstructor(String.class).newInstance(value);
-        } catch (Exception e) {
+            large_integer = from_string.apply(value);
+        } catch (NumberFormatException e) {
             large_integer = null;
         }
         if (null != large_integer) {
@@ -25,11 +27,11 @@ public final class Operand implements Token {
             this.operand_type = OperandType.LARGE_INTEGER;
             return;
         }
-        Rational<T> rational;
+        final Rational<T> rational;
         try {
-            rational = rational_type.getConstructor(String.class, Class.class).newInstance(value, large_integer_type);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(value + " is not a valid rational");
+            rational = new Rational<>(value, from_string);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(value + " is not a valid rational", e);
         }
         this.value = rational;
         this.operand_type = OperandType.RATIONAL;
@@ -43,6 +45,10 @@ public final class Operand implements Token {
     @Override
     public char get_type_code() {
         return operand_type.get_type_code();
+    }
+
+    public OperandType get_operand_type() {
+        return operand_type;
     }
 
     public Object get_value() {

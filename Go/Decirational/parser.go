@@ -14,9 +14,27 @@ import (
 //	power      := primary ('^' unary)?              // right-associative
 //	primary    := operand | '(' expression ')' | '[' expression ']' (floor)
 //	            | '|' expression '|' (absolute value)
+//
+// maxExpressionDepth bounds recursion in parseUnary, the one point every
+// recursive production in this grammar passes through at least once per
+// level of nesting: directly for a chain of unary +/- (parseUnary calling
+// itself), for bracket/floor/absolute-value nesting (via the
+// expression->term->unary->power->primary chain that runs once per level
+// before the next '(', '[' or '|'), and for right-associative '^' chains
+// (parsePower calling parseUnary for its exponent, which can lead straight
+// back into parsePower). A goroutine's stack grows dynamically but still has
+// a ceiling - a deeply nested or chained expression overflows it with an
+// uncatchable "fatal error: stack overflow" (not a panic - recover cannot
+// intercept it, so the whole process dies) well before this limit, so this
+// is checked well short of that: crafting a one-line expression this deep is
+// trivial for an attacker, and no legitimate expression needs anywhere near
+// it.
+const maxExpressionDepth = 1000
+
 type Parser[T CustomInteger[T]] struct {
 	tokens []Token
 	pos    int
+	depth  int
 }
 
 // NewParser creates a Parser. The type parameter fixes which CustomInteger
@@ -39,6 +57,7 @@ func (p *Parser[T]) Parse(tokens []Token) (result Rational[T], err error) {
 	}
 	p.tokens = tokens
 	p.pos = 0
+	p.depth = 0
 	result, err = p.parseExpression()
 	if err != nil {
 		return Rational[T]{}, err
@@ -145,6 +164,11 @@ func moduloRational[T CustomInteger[T]](a, b Rational[T]) (Rational[T], error) {
 }
 
 func (p *Parser[T]) parseUnary() (Rational[T], error) {
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > maxExpressionDepth {
+		return Rational[T]{}, fmt.Errorf("expression nested too deeply (max depth %d)", maxExpressionDepth)
+	}
 	if p.check(OpPlus) {
 		p.advance()
 		return p.parseUnary()

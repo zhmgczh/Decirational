@@ -133,6 +133,8 @@ impl PartialOrd for TightInteger {
 }
 
 impl CustomInteger for TightInteger {
+    fn from_i64(n: i64) -> Self { Self::from_i64(n) }
+
     fn is_zero(&self) -> bool { self.words.len() == 1 && self.words[0] == 0 }
     fn is_one(&self) -> bool { !self.negative && self.words.len() == 1 && self.words[0] == 1 }
     fn is_unit_abs(&self) -> bool { self.words.len() == 1 && self.words[0] == 1 }

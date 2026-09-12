@@ -42,30 +42,30 @@ public final class RationalTest {
         t.check_equals("-3/4", r(3, 4).negate().toString(), "negate of positive fraction");
 
         // String parsing: fractions
-        t.check_equals("3/4", new Rational<>("3/4", DecimalInteger.class).toString(), "parse simple fraction");
-        t.check_equals("-3/4", new Rational<>("-3/4", DecimalInteger.class).toString(), "parse negative fraction");
-        t.check_equals("3/4", new Rational<>("6/8", DecimalInteger.class).toString(), "parse fraction reduces");
-        t.check_equals("5", new Rational<>("5", DecimalInteger.class).toString(), "parse bare integer");
+        t.check_equals("3/4", new Rational<>("3/4", DecimalInteger::new).toString(), "parse simple fraction");
+        t.check_equals("-3/4", new Rational<>("-3/4", DecimalInteger::new).toString(), "parse negative fraction");
+        t.check_equals("3/4", new Rational<>("6/8", DecimalInteger::new).toString(), "parse fraction reduces");
+        t.check_equals("5", new Rational<>("5", DecimalInteger::new).toString(), "parse bare integer");
 
         // String parsing: decimals
-        t.check_equals("1/2", new Rational<>("0.5", DecimalInteger.class).toString(), "parse terminating decimal 0.5");
-        t.check_equals("-1/2", new Rational<>("-0.5", DecimalInteger.class).toString(), "parse negative terminating decimal");
-        t.check_equals("1/4", new Rational<>("0.25", DecimalInteger.class).toString(), "parse terminating decimal 0.25");
+        t.check_equals("1/2", new Rational<>("0.5", DecimalInteger::new).toString(), "parse terminating decimal 0.5");
+        t.check_equals("-1/2", new Rational<>("-0.5", DecimalInteger::new).toString(), "parse negative terminating decimal");
+        t.check_equals("1/4", new Rational<>("0.25", DecimalInteger::new).toString(), "parse terminating decimal 0.25");
 
         // String parsing: cyclic decimals
-        t.check_equals("1/3", new Rational<>("0.{3}", DecimalInteger.class).toString(), "parse cyclic decimal 0.{3}");
-        t.check_equals("47/30", new Rational<>("1.5{6}", DecimalInteger.class).to_fraction_string(), "parse mixed finite+cyclic decimal");
+        t.check_equals("1/3", new Rational<>("0.{3}", DecimalInteger::new).toString(), "parse cyclic decimal 0.{3}");
+        t.check_equals("47/30", new Rational<>("1.5{6}", DecimalInteger::new).to_fraction_string(), "parse mixed finite+cyclic decimal");
 
         // Malformed strings
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("", DecimalInteger.class), "empty string rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>(".", DecimalInteger.class), "lone decimal point rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("1.2.3", DecimalInteger.class), "two decimal points rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("1/2/3", DecimalInteger.class), "two fraction bars rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("1/2.5", DecimalInteger.class), "fraction bar with decimal point rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("5.", DecimalInteger.class), "trailing decimal point rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("0.{}", DecimalInteger.class), "empty cyclic group rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("1{3}", DecimalInteger.class), "cyclic group without decimal point rejected");
-        t.check_throws(NumberFormatException.class, () -> new Rational<>("1.2}", DecimalInteger.class), "closing brace without opening rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("", DecimalInteger::new), "empty string rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>(".", DecimalInteger::new), "lone decimal point rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("1.2.3", DecimalInteger::new), "two decimal points rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("1/2/3", DecimalInteger::new), "two fraction bars rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("1/2.5", DecimalInteger::new), "fraction bar with decimal point rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("5.", DecimalInteger::new), "trailing decimal point rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("0.{}", DecimalInteger::new), "empty cyclic group rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("1{3}", DecimalInteger::new), "cyclic group without decimal point rejected");
+        t.check_throws(NumberFormatException.class, () -> new Rational<>("1.2}", DecimalInteger::new), "closing brace without opening rejected");
         t.check_throws(IllegalArgumentException.class, () -> new Rational<>("5", null), "null integer type rejected");
 
         // Arithmetic

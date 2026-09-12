@@ -31,6 +31,19 @@ pub type DResult<T> = Result<T, DError>;
 /// exactly as in the Java version (`T extends CustomInteger<T>` there,
 /// `T: CustomInteger` here - Rust's `Self` plays the role Java's `T` plays).
 pub trait CustomInteger: Sized + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Display {
+    /// Builds a T for a small machine integer directly, with no existing T
+    /// needed to call it on. Java's generics (erased, no static dispatch
+    /// through a type parameter) and Go's (interface constraints are pure
+    /// method sets, no way to require a constructor either) cannot express
+    /// this at all - both are limited to instance methods, which is why
+    /// Rational<T>'s base-10 helpers used to build constants like 5 and 10
+    /// by hand out of repeated `plus`/`multiply` starting from `pow(0)`, the
+    /// only value obtainable without a T already in hand. A Rust trait can
+    /// declare an associated function with no `self` parameter, so callers
+    /// with just a type bound (`T: CustomInteger`) can call `T::from_i64(10)`
+    /// directly.
+    fn from_i64(n: i64) -> Self;
+
     fn is_zero(&self) -> bool;
     fn is_one(&self) -> bool;
     fn is_unit_abs(&self) -> bool;

@@ -1,6 +1,9 @@
 package decirational
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func evalD(t *testing.T, expr string) string {
 	t.Helper()
@@ -184,4 +187,52 @@ func TestParserErrorCases(t *testing.T) {
 	if _, err := parser.Parse(nil); err == nil {
 		t.Error("empty token list should be rejected")
 	}
+}
+
+// TestParserExpressionDepthLimit is a regression test for a real DoS: any of
+// three independent recursion paths (bracket/floor/absolute nesting, chained
+// unary +/-, chained right-associative ^) previously took down the whole
+// process with an uncatchable "fatal error: stack overflow" (not a panic -
+// recover cannot intercept it) on a single malicious input line. A deeply
+// nested/chained expression must instead be rejected as a normal, catchable
+// error.
+func TestParserExpressionDepthLimitRejectsDeepInput(t *testing.T) {
+	lexer := NewLexer[TightInteger](NewTightIntegerFromInt32, ParseTightInteger)
+	deepExprs := []string{
+		strings.Repeat("(", 10_000) + "1" + strings.Repeat(")", 10_000),
+		strings.Repeat("-", 10_000) + "5",
+		// Base 1 (not 2): 1^1^1^...^1 never produces an exponent outside
+		// int32 range, so this exercises the depth guard itself rather than
+		// coincidentally failing "exponent out of range" first.
+		strings.Join(repeatString("1", 10_000), "^"),
+	}
+	for _, expr := range deepExprs {
+		tokens, err := lexer.GetTokens(expr)
+		if err == nil {
+			parser := NewParser[TightInteger]()
+			_, err = parser.Parse(tokens)
+		}
+		if err == nil {
+			t.Errorf("expected an error for a 10,000-deep expression: %q", expr)
+			continue
+		}
+		if !strings.Contains(err.Error(), "nested too deeply") {
+			t.Errorf("expected a 'nested too deeply' error, got: %v", err)
+		}
+	}
+}
+
+func TestParserExpressionDepthLimitAllowsModerateNesting(t *testing.T) {
+	expr := strings.Repeat("(", 500) + "1" + strings.Repeat(")", 500)
+	if got := evalD(t, expr); got != "1" {
+		t.Errorf("nesting well under the depth limit should still work: got %s", got)
+	}
+}
+
+func repeatString(s string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = s
+	}
+	return out
 }

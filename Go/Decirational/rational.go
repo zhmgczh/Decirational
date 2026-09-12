@@ -250,6 +250,16 @@ func (r Rational[T]) ToDecimalString() string {
 }
 
 func (r Rational[T]) ToTruncateDecimalString(roundTo int32) string {
+	// Checked up front, like the math.MinInt32 guards in
+	// ToRoundDecimalString and ToCeilDecimalString: math.MinInt32 has no
+	// positive counterpart ("the minimum representable precision" isn't
+	// representable), so there is nothing meaningful to truncate to and
+	// every port rejects it. Checking it before negating anything (rather
+	// than negating first and relying on how that happens to overflow)
+	// means the rest of this function can just negate roundTo normally.
+	if roundTo == math.MinInt32 {
+		panic("cannot round to the minimum representable precision")
+	}
 	ten := r.getTen()
 	qr := r.numerator.Abs().DivideByAndModulo(r.denominator)
 	wholeInteger := qr[0]
@@ -258,21 +268,10 @@ func (r Rational[T]) ToTruncateDecimalString(roundTo int32) string {
 	if r.numerator.IsNegative() {
 		sign = "-"
 	}
-	// Computed as int32 (not widened to int) so that roundTo == math.MinInt32
-	// reproduces Java's `-round_to` overflow (negating Integer.MIN_VALUE
-	// wraps back to itself in Java's 32-bit int, keeping this guard
-	// permanently false and always falling through to the explicit
-	// math.MinInt32 panic below, regardless of the number's magnitude) and
-	// Rust's identical `round_to.wrapping_neg()`. Widening before negating
-	// would make the guard trigger for ordinary numbers instead, silently
-	// diverging from both other ports for this input.
 	negRoundTo := -roundTo
 	if len(wholeIntegerStr) <= int(negRoundTo) {
 		return sign + "0"
 	} else if roundTo < 0 {
-		if roundTo == math.MinInt32 {
-			panic("cannot round to the minimum representable precision")
-		}
 		shiftBase := ten.Pow(negRoundTo)
 		result := wholeInteger.DivideBy(shiftBase).Multiply(shiftBase)
 		return sign + result.String()

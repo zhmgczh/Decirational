@@ -1,9 +1,8 @@
 import java.util.ArrayList;
 
 public final class LexerTest {
-    @SuppressWarnings("unchecked")
     private static Lexer<TightInteger> new_lexer() {
-        return new Lexer<>(TightInteger.class, (Class<Rational<TightInteger>>) (Class<?>) Rational.class);
+        return new Lexer<>(TightInteger::new);
     }
 
     public static TestFramework run() {
@@ -65,6 +64,20 @@ public final class LexerTest {
 
         t.check_throws(IllegalArgumentException.class, () -> lexer.get_tokens("2#3"), "illegal character is rejected");
         t.check_throws(IllegalArgumentException.class, () -> lexer.get_tokens("5!"), "illegal character ! is rejected");
+
+        // Regression: an illegal character in the first position used to make
+        // char_table.get(...) return null and go unchecked, so record_token
+        // threw a NullPointerException instead of IllegalArgumentException.
+        t.check_throws(IllegalArgumentException.class, () -> lexer.get_tokens("a"), "illegal leading character is rejected, not an NPE");
+        t.check_throws(IllegalArgumentException.class, () -> lexer.get_tokens("@"), "illegal leading character @ is rejected, not an NPE");
+        t.check_throws(IllegalArgumentException.class, () -> lexer.get_tokens("a1"), "illegal leading character before a digit is rejected, not an NPE");
+
+        try {
+            lexer.get_tokens("abc");
+            t.check(false, "abc is rejected as illegal");
+        } catch (final IllegalArgumentException e) {
+            t.check(null != e.getMessage() && e.getMessage().contains("character a"), "abc reports the first illegal character (a), not a later one (expected message to contain <character a> but was <" + e.getMessage() + ">)");
+        }
 
         return t;
     }

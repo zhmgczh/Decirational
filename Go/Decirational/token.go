@@ -56,21 +56,6 @@ func (o OperatorKind) String() string {
 	return fmt.Sprintf("%c", byte(o))
 }
 
-// Priority mirrors Java's Operator.get_priority (unused by Parser's
-// recursive-descent grammar, kept for API parity with the Java Operator enum).
-func (o OperatorKind) Priority() int {
-	switch o {
-	case OpPlus, OpMinus:
-		return 0
-	case OpMultiplication, OpDivision, OpIntegerDivision, OpModulo:
-		return 1
-	case OpPower:
-		return 2
-	default:
-		panic("unknown operator")
-	}
-}
-
 // ParenKind mirrors Java's Parenthesis enum.
 type ParenKind byte
 

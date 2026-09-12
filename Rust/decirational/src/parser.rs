@@ -13,9 +13,25 @@ use crate::token::Token;
 /// primary    := operand | '(' expression ')' | '[' expression ']' (floor)
 ///             | '|' expression '|' (absolute value)
 /// ```
+// parse_unary is the one point every recursive production in this grammar
+// passes through at least once per level of nesting: directly for a chain
+// of unary +/- (parse_unary calling itself), for bracket/floor/absolute-
+// value nesting (via the expression->term->unary->power->primary chain that
+// runs once per level before the next '(', '[' or '|'), and for right-
+// associative '^' chains (parse_power calling parse_unary for its exponent,
+// which can lead straight back into parse_power). Rust's call stack has no
+// bound of its own worth relying on - a deeply nested or chained expression
+// overflows it with an uncatchable "fatal runtime error: stack overflow"
+// (not a panic - catch_unwind cannot intercept it, so the whole process
+// aborts) well before this limit, so this is checked well short of that:
+// crafting a one-line expression this deep is trivial for an attacker, and
+// no legitimate expression needs anywhere near it.
+const MAX_EXPRESSION_DEPTH: u32 = 1000;
+
 pub struct Parser<T: CustomInteger> {
     tokens: Vec<Token<T>>,
     pos: usize,
+    depth: u32,
 }
 
 impl<T: CustomInteger> Default for Parser<T> {
@@ -26,7 +42,7 @@ impl<T: CustomInteger> Default for Parser<T> {
 
 impl<T: CustomInteger> Parser<T> {
     pub fn new() -> Self {
-        Parser { tokens: Vec::new(), pos: 0 }
+        Parser { tokens: Vec::new(), pos: 0, depth: 0 }
     }
 
     /// Evaluates `tokens` to a single Rational<T>.
@@ -36,6 +52,7 @@ impl<T: CustomInteger> Parser<T> {
         }
         self.tokens = tokens;
         self.pos = 0;
+        self.depth = 0;
         let result = self.parse_expression()?;
         if self.pos != self.tokens.len() {
             return Err(DError::new(format!("unexpected token: {}", self.tokens[self.pos])));
@@ -103,6 +120,17 @@ impl<T: CustomInteger> Parser<T> {
     }
 
     fn parse_unary(&mut self) -> DResult<Rational<T>> {
+        self.depth += 1;
+        if self.depth > MAX_EXPRESSION_DEPTH {
+            self.depth -= 1;
+            return Err(DError::new(format!("expression nested too deeply (max depth {MAX_EXPRESSION_DEPTH})")));
+        }
+        let result = self.parse_unary_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_unary_inner(&mut self) -> DResult<Rational<T>> {
         if self.check(&Token::Plus) {
             self.pos += 1;
             return self.parse_unary();
