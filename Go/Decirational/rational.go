@@ -20,11 +20,9 @@ func (r Rational[T]) getOne() Rational[T] {
 	return Rational[T]{one, one}
 }
 
-func (r Rational[T]) getFive() T {
+func (r Rational[T]) getTwo() T {
 	one := r.denominator.Pow(0)
-	two := one.Plus(one)
-	four := two.Plus(two)
-	return four.Plus(one)
+	return one.Plus(one)
 }
 
 func (r Rational[T]) getTen() T {
@@ -280,10 +278,15 @@ func (r Rational[T]) ToTruncateDecimalString(roundTo int32) string {
 	var decimal strings.Builder
 	decimal.WriteString(sign)
 	decimal.WriteString(wholeIntegerStr)
-	if !remainder.IsZero() {
-		decimal.WriteByte('.')
-	}
-	for i := int32(0); i < roundTo && !remainder.IsZero(); i++ {
+	// roundTo > 0 here (roundTo <= 0 already returned above), so every
+	// caller asking for a given precision gets exactly that many digits
+	// after the point - including trailing zeros - rather than the digit
+	// count silently varying with how many of them happen to be zero.
+	// This also keeps ToTruncateDecimalString aligned with
+	// ToRoundDecimalString, ToCeilDecimalString, and ToFloorDecimalString,
+	// which all format their already-rounded value through this method.
+	decimal.WriteByte('.')
+	for i := int32(0); i < roundTo; i++ {
 		remainder = remainder.Multiply(ten)
 		qr = remainder.DivideByAndModulo(r.denominator)
 		digit := qr[0]
@@ -293,21 +296,74 @@ func (r Rational[T]) ToTruncateDecimalString(roundTo int32) string {
 	return decimal.String()
 }
 
+// RoundingMode selects how ToRoundDecimalStringMode resolves an exact tie
+// (a discarded fraction of precisely 1/2).
+type RoundingMode int
+
+const (
+	// RoundHalfUp rounds an exact tie away from zero. This is the mode
+	// ToRoundDecimalString has always used.
+	RoundHalfUp RoundingMode = iota
+	// RoundHalfEven rounds an exact tie to whichever neighbor has an even
+	// last digit ("banker's rounding"), the convention many accounting
+	// systems use to avoid biasing sums of rounded values upward.
+	RoundHalfEven
+)
+
 func (r Rational[T]) ToRoundDecimalString(roundTo int32) string {
+	return r.ToRoundDecimalStringMode(roundTo, RoundHalfUp)
+}
+
+// ToRoundDecimalStringMode is ToRoundDecimalString with an explicit tie-breaking rule; see RoundingMode.
+func (r Rational[T]) ToRoundDecimalStringMode(roundTo int32, mode RoundingMode) string {
+	return r.roundToMode(roundTo, mode).ToTruncateDecimalString(roundTo)
+}
+
+// roundToMode returns the exact value of r rounded to roundTo digits after
+// the decimal point (roundTo may be negative, rounding before the point
+// instead). It compares the discarded fraction directly against 1/2 rather
+// than the previous "add 5 * 10^(-roundTo-1) then truncate" trick, so it
+// generalizes cleanly to modes other than half-up.
+func (r Rational[T]) roundToMode(roundTo int32, mode RoundingMode) Rational[T] {
 	if roundTo == math.MinInt32 {
 		panic("cannot round to the minimum representable precision")
 	}
-	five := Rational[T]{r.getFive(), r.denominator.Pow(0)}
-	ten := Rational[T]{r.getTen(), r.denominator.Pow(0)}
-	shiftBase := ten.Pow(-roundTo - 1)
-	delta := five.Multiply(shiftBase)
-	var temp Rational[T]
-	if r.IsNegative() {
-		temp = r.Minus(delta)
-	} else {
-		temp = r.Plus(delta)
+	if r.IsZero() {
+		return r
 	}
-	return temp.ToTruncateDecimalString(roundTo)
+	oneT := r.denominator.Pow(0)
+	ten := Rational[T]{r.getTen(), oneT}
+	scaleFactor := ten.Pow(roundTo)
+	absScaled := r.Abs().Multiply(scaleFactor)
+	roundedAbsInt := r.roundedAbsInt(absScaled, mode)
+	result := Rational[T]{roundedAbsInt, oneT}.DivideBy(scaleFactor)
+	if r.IsNegative() {
+		result = result.Negate()
+	}
+	return result
+}
+
+// roundedAbsInt returns the integer nearest to the non-negative rational v,
+// breaking an exact tie according to mode.
+func (r Rational[T]) roundedAbsInt(v Rational[T], mode RoundingMode) T {
+	qr := v.numerator.DivideByAndModulo(v.denominator)
+	flooredInt, remainder := qr[0], qr[1]
+	if remainder.IsZero() {
+		return flooredInt
+	}
+	oneT := r.denominator.Pow(0)
+	doubledRemainder := remainder.Multiply(r.getTwo())
+	switch doubledRemainder.Compare(v.denominator) {
+	case 1:
+		return flooredInt.Plus(oneT)
+	case -1:
+		return flooredInt
+	default: // discarded fraction is exactly 1/2: an exact tie
+		if mode == RoundHalfEven && flooredInt.Modulo(r.getTwo()).IsZero() {
+			return flooredInt
+		}
+		return flooredInt.Plus(oneT)
+	}
 }
 
 func (r Rational[T]) ToCeilDecimalString(roundTo int32) string {

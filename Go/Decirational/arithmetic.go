@@ -415,8 +415,14 @@ func gcdWords(result []uint32, a []uint32, b []uint32) { gcd(wordSpec, result, a
 
 // ---- base conversion between decimal digits and base-2^32 words ----
 
-var tightBaseAsWord = []uint32{10}
 var tightBaseAsDigits = []byte{4, 2, 9, 4, 9, 6, 7, 2, 9, 6} // 4294967296 written in decimal digits
+
+// decimalChunkDigits is the number of decimal digits extracted per division
+// in convertWordsToDigits: the most that fit in a uint32 word (10^9 < 2^32
+// <= 10^10).
+const decimalChunkDigits = 9
+
+var decimalChunkBaseAsWord = []uint32{1_000_000_000}
 
 func decimalRemainderToWord(remainder []byte) uint32 {
 	var value uint64 = 0
@@ -426,23 +432,37 @@ func decimalRemainderToWord(remainder []byte) uint32 {
 	return uint32(value)
 }
 
-// convertWordsToDigits writes the decimal digit expansion of words (base 2^32) into digits.
+// convertWordsToDigits writes the decimal digit expansion of words (base
+// 2^32) into digits. len(digits) must be a multiple of decimalChunkDigits
+// large enough to hold every significant digit (leading zero slots are fine
+// - callers strip those the same way they always have).
+//
+// Divides by 10^9 rather than by 10: each division here is a full
+// len(words)-ish-word long division (binary-search based, unrelated to how
+// large the single-word divisor itself is), so extracting decimalChunkDigits
+// decimal digits per division instead of one cuts the number of those
+// divisions - and everything scaling with that count - by roughly
+// decimalChunkDigits-fold.
 func convertWordsToDigits(digits []byte, words []uint32) {
 	quotient := make([]uint32, len(words))
 	copy(quotient, words)
 	temp := make([]uint32, len(quotient))
 	remainder := make([]uint32, 1)
-	digitsIndex := len(digits) - 1
+	digitsIndex := len(digits)
 	left := precedingZerosWords(quotient)
 	for !isZeroWords(quotient[left:]) {
 		window := quotient[left:]
 		clear(temp[left:])
 		remainder[0] = 0
-		divideAndModuloWords(temp[left:], remainder, window, tightBaseAsWord)
-		digits[digitsIndex] = byte(remainder[0])
+		divideAndModuloWords(temp[left:], remainder, window, decimalChunkBaseAsWord)
+		chunk := remainder[0]
+		for i := 0; i < decimalChunkDigits; i++ {
+			digitsIndex--
+			digits[digitsIndex] = byte(chunk % 10)
+			chunk /= 10
+		}
 		left += precedingZerosWords(temp[left:])
 		copy(quotient[left:], temp[left:])
-		digitsIndex--
 	}
 }
 

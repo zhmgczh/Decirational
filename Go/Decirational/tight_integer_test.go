@@ -202,6 +202,12 @@ func TestTightIntegerRoundTrips(t *testing.T) {
 		"2147483647", "2147483648", "4294967295", "4294967296",
 		"-2147483648", "123456789012345678901234567890",
 		"-999999999999999999999999999999999999999",
+		// Exercise convertWordsToDigits's 9-decimal-digit chunking directly:
+		// exactly one chunk, exactly two chunks, and one digit into a third
+		// chunk, each with a leading digit that must not become a spurious
+		// leading zero once the top chunk's unused high digits are trimmed.
+		"999999999", "-999999999", "100000000", "123456789123456789",
+		"-123456789123456789", "1000000000000000001",
 	}
 	for _, v := range values {
 		verifyTightRoundTrip(t, v)

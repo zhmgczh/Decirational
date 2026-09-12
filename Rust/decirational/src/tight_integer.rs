@@ -20,9 +20,9 @@ pub struct TightInteger {
 
 impl TightInteger {
     pub(crate) fn from_words_unsafe(words: Vec<u32>, negative: bool) -> Self {
-        let w = optimize_words(&words);
-        let negative = optimize_sign_words(negative, &w);
-        TightInteger { negative, words: w }
+        let words = optimize_words(words);
+        let negative = optimize_sign_words(negative, &words);
+        TightInteger { negative, words }
     }
 
     pub fn zero() -> Self {
@@ -74,8 +74,13 @@ impl TightInteger {
 
     /// Converts this TightInteger to the base-10 representation.
     pub fn to_decimal_integer(&self) -> DecimalInteger {
-        let decimal_length = (self.words.len() as f64 * TIGHT_TO_DECIMAL_LENGTH_RATIO + 1.0) as usize + 1;
-        let mut digits = vec![0u8; decimal_length];
+        let significant_estimate = (self.words.len() as f64 * TIGHT_TO_DECIMAL_LENGTH_RATIO + 1.0) as usize + 1;
+        // convert_words_to_digits writes DECIMAL_CHUNK_DIGITS digits per
+        // division, so the buffer must hold a whole number of those chunks
+        // - rounded up from the safe estimate above, never down, so it's
+        // still large enough for every significant digit.
+        let chunks = significant_estimate.div_ceil(DECIMAL_CHUNK_DIGITS);
+        let mut digits = vec![0u8; chunks * DECIMAL_CHUNK_DIGITS];
         convert_words_to_digits(&mut digits, &self.words);
         DecimalInteger::from_digits(&digits, self.negative).expect("converted digits are always valid")
     }

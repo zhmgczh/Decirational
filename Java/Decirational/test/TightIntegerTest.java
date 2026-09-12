@@ -127,6 +127,15 @@ public final class TightIntegerTest {
         verifyRoundTrip(t, "-2147483648");
         verifyRoundTrip(t, "123456789012345678901234567890");
         verifyRoundTrip(t, "-999999999999999999999999999999999999999");
+        // Exercise convertTightToDecimal's 9-decimal-digit chunking directly: exactly one chunk, exactly two
+        // chunks, and one digit into a third chunk, each with a leading digit that must not become a spurious
+        // leading zero once the top chunk's unused high digits are trimmed.
+        verifyRoundTrip(t, "999999999");
+        verifyRoundTrip(t, "-999999999");
+        verifyRoundTrip(t, "100000000");
+        verifyRoundTrip(t, "123456789123456789");
+        verifyRoundTrip(t, "-123456789123456789");
+        verifyRoundTrip(t, "1000000000000000001");
 
         // Cross-validate arithmetic against the independently-implemented DecimalInteger
         crossCheck(t, "123456789012345678901234567890", "987654321098765432109876543210");

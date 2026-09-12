@@ -21,11 +21,9 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return new Rational<>(one, one, true, true, true);
     }
 
-    private T getFive() {
+    private T getTwo() {
         final T one = denominator.pow(0);
-        final T two = one.plus(one);
-        final T four = two.plus(two);
-        return four.plus(one);
+        return one.plus(one);
     }
 
     private T getTen() {
@@ -299,29 +297,78 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         }
         T remainder = integer_and_remainder[1];
         final StringBuilder decimal = new StringBuilder();
-        decimal.append(numerator.isNegative() ? '-' : "").append(whole_integer_string).append(remainder.isZero() ? "" : '.');
-        int index = 0;
-        while (index < round_to && !remainder.isZero()) {
+        // round_to > 0 here (round_to <= 0 already returned above), so every
+        // caller asking for a given precision gets exactly that many digits
+        // after the point - including trailing zeros - rather than the
+        // digit count silently varying with how many of them happen to be
+        // zero. This also keeps toTruncateDecimalString aligned with
+        // toRoundDecimalString, toCeilDecimalString, and
+        // toFloorDecimalString, which all format their already-rounded
+        // value through this method.
+        decimal.append(numerator.isNegative() ? '-' : "").append(whole_integer_string).append('.');
+        for (int index = 0; index < round_to; ++index) {
             remainder = remainder.multiply(ten);
             integer_and_remainder = remainder.divideByAndModulo(denominator);
             final T integer = integer_and_remainder[0];
             remainder = integer_and_remainder[1];
             decimal.append(integer.toString().charAt(0));
-            ++index;
         }
         return decimal.toString();
     }
 
     public String toRoundDecimalString(final int round_to) {
+        return toRoundDecimalStringMode(round_to, RoundingMode.HALF_UP);
+    }
+
+    /** {@link #toRoundDecimalString(int)} with an explicit tie-breaking rule; see {@link RoundingMode}. */
+    public String toRoundDecimalStringMode(final int round_to, final RoundingMode mode) {
+        return roundToMode(round_to, mode).toTruncateDecimalString(round_to);
+    }
+
+    /**
+     * Returns the exact value of this rational rounded to round_to digits after the decimal point (round_to may be
+     * negative, rounding before the point instead). Compares the discarded fraction directly against 1/2 rather
+     * than the previous "add 5 * 10^(-round_to-1) then truncate" trick, so it generalizes cleanly to modes other
+     * than half-up.
+     */
+    private Rational<T> roundToMode(final int round_to, final RoundingMode mode) {
         if (Integer.MIN_VALUE == round_to) {
             throw new IllegalArgumentException("cannot round to the minimum representable precision");
         }
-        final Rational<T> five = new Rational<>(getFive(), true);
+        if (isZero()) {
+            return this;
+        }
         final Rational<T> ten = new Rational<>(getTen(), true);
-        final Rational<T> shift_base = ten.pow(-round_to - 1);
-        final Rational<T> delta = five.multiply(shift_base);
-        final Rational<T> temp_rational = isNegative() ? minus(delta) : plus(delta);
-        return temp_rational.toTruncateDecimalString(round_to);
+        final Rational<T> scale_factor = ten.pow(round_to);
+        final Rational<T> abs_scaled = abs().multiply(scale_factor);
+        final T rounded_abs_int = roundedAbsInt(abs_scaled, mode);
+        Rational<T> result = new Rational<>(rounded_abs_int, true).divideBy(scale_factor);
+        if (isNegative()) {
+            result = result.negate();
+        }
+        return result;
+    }
+
+    /** Returns the integer nearest to the non-negative rational v, breaking an exact tie according to mode. */
+    private T roundedAbsInt(final Rational<T> v, final RoundingMode mode) {
+        final T[] whole_and_remainder = v.numerator.divideByAndModulo(v.denominator);
+        final T floored_int = whole_and_remainder[0];
+        final T remainder = whole_and_remainder[1];
+        if (remainder.isZero()) {
+            return floored_int;
+        }
+        final T one = denominator.pow(0);
+        final int compare_to_half = remainder.multiply(getTwo()).compareTo(v.denominator);
+        if (compare_to_half > 0) {
+            return floored_int.plus(one);
+        } else if (compare_to_half < 0) {
+            return floored_int;
+        }
+        // discarded fraction is exactly 1/2: an exact tie
+        if (RoundingMode.HALF_EVEN == mode && floored_int.modulo(getTwo()).isZero()) {
+            return floored_int;
+        }
+        return floored_int.plus(one);
     }
 
     public String toCeilDecimalString(final int round_to) {

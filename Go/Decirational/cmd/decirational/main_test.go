@@ -25,7 +25,7 @@ func TestRunHandlesLineLongerThan64KiB(t *testing.T) {
 
 	in := strings.NewReader(expression + "\n")
 	var out strings.Builder
-	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, in, &out); err != nil {
+	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, dec.RoundHalfUp, in, &out); err != nil {
 		t.Fatalf("run returned an error: %v", err)
 	}
 
@@ -45,7 +45,7 @@ func TestRunContinuesAfterLongLine(t *testing.T) {
 
 	in := strings.NewReader(longExpression + "\n1+1\n")
 	var out strings.Builder
-	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, in, &out); err != nil {
+	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, dec.RoundHalfUp, in, &out); err != nil {
 		t.Fatalf("run returned an error: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func TestRunContinuesAfterLongLine(t *testing.T) {
 func TestRunHandlesFinalLineWithoutTrailingNewline(t *testing.T) {
 	in := strings.NewReader("1+2")
 	var out strings.Builder
-	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, in, &out); err != nil {
+	if err := run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, "default", 0, dec.RoundHalfUp, in, &out); err != nil {
 		t.Fatalf("run returned an error: %v", err)
 	}
 	if got := strings.TrimSpace(out.String()); got != "3" {

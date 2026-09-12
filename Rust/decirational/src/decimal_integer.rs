@@ -19,9 +19,9 @@ pub struct DecimalInteger {
 }
 
 fn unsafe_new(digits: Vec<u8>, negative: bool) -> DecimalInteger {
-    let d = optimize_digits(&digits);
-    let negative = optimize_sign_digits(negative, &d);
-    DecimalInteger { negative, digits: d }
+    let digits = optimize_digits(digits);
+    let negative = optimize_sign_digits(negative, &digits);
+    DecimalInteger { negative, digits }
 }
 
 impl DecimalInteger {

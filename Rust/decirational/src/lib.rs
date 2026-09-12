@@ -15,7 +15,7 @@ pub use custom_integer::{CustomInteger, DError, DResult};
 pub use decimal_integer::DecimalInteger;
 pub use lexer::Lexer;
 pub use parser::Parser;
-pub use rational::{parse_rational, Rational};
+pub use rational::{parse_rational, Rational, RoundingMode};
 pub use tight_integer::TightInteger;
 pub use token::Token;
 

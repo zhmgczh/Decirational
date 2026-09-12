@@ -1,5 +1,5 @@
 use crate::arithmetic::*;
-use crate::{parse_rational, CustomInteger, DecimalInteger, Lexer, Parser, Rational, TightInteger, Token};
+use crate::{parse_rational, CustomInteger, DecimalInteger, Lexer, Parser, Rational, RoundingMode, TightInteger, Token};
 
 fn d(s: &str) -> DecimalInteger {
     DecimalInteger::parse(s).unwrap_or_else(|e| panic!("parse({:?}): {}", s, e))
@@ -23,9 +23,9 @@ fn assert_panics<F: FnOnce() + std::panic::UnwindSafe>(desc: &str, f: F) {
 
 #[test]
 fn arithmetic_digits_helpers() {
-    assert_eq!(optimize_digits(&[0, 0, 1, 2]), vec![1, 2]);
-    assert_eq!(optimize_digits(&[0, 0, 0]), vec![0]);
-    assert_eq!(optimize_digits(&[5]), vec![5]);
+    assert_eq!(optimize_digits(vec![0, 0, 1, 2]), vec![1, 2]);
+    assert_eq!(optimize_digits(vec![0, 0, 0]), vec![0]);
+    assert_eq!(optimize_digits(vec![5]), vec![5]);
 
     assert!(!optimize_sign_digits(true, &[0]));
     assert!(optimize_sign_digits(true, &[5]));
@@ -43,8 +43,8 @@ fn arithmetic_digits_helpers() {
 
 #[test]
 fn arithmetic_words_helpers() {
-    assert_eq!(optimize_words(&[0, 0, 1, 2]), vec![1, 2]);
-    assert_eq!(optimize_words(&[0, 0, 0]), vec![0]);
+    assert_eq!(optimize_words(vec![0, 0, 1, 2]), vec![1, 2]);
+    assert_eq!(optimize_words(vec![0, 0, 0]), vec![0]);
     assert!(!optimize_sign_words(true, &[0]));
 
     assert_eq!(compare_words(&[1, 2], &[1, 2]), 0);
@@ -339,7 +339,13 @@ fn verify_tight_round_trip(value: &str) {
 #[test]
 fn tight_integer_round_trips() {
     let values = ["0", "1", "-1", "9", "10", "99", "100", "2147483647", "2147483648", "4294967295", "4294967296",
-        "-2147483648", "123456789012345678901234567890", "-999999999999999999999999999999999999999"];
+        "-2147483648", "123456789012345678901234567890", "-999999999999999999999999999999999999999",
+        // Exercise convert_words_to_digits's 9-decimal-digit chunking directly:
+        // exactly one chunk, exactly two chunks, and one digit into a third
+        // chunk, each with a leading digit that must not become a spurious
+        // leading zero once the top chunk's unused high digits are trimmed.
+        "999999999", "-999999999", "100000000", "123456789123456789",
+        "-123456789123456789", "1000000000000000001"];
     for v in values {
         verify_tight_round_trip(v);
     }
@@ -494,6 +500,50 @@ fn rational_truncate_round_ceil_floor() {
     // whose floor()-of-negation is exactly zero prints "-0" instead of "0".
     // Documented rather than silently treated as correct.
     assert_eq!(r(-1, 3).to_ceil_decimal_string(0), "-0", "known -0 bug");
+}
+
+// truncate/round/ceil/floor must agree on digit count: truncate/ceil/floor used to stop
+// early and drop trailing zeros whenever the exact decimal terminated before reaching the
+// requested precision (e.g. an integer's remainder is zero from the start), while round
+// always padded because its old "add 5 * 10^(-round_to-1) then truncate" trick made the
+// remainder non-zero almost by construction. Each case below is already exact at the given
+// precision, so all four formats must produce the identical, fully padded string.
+#[test]
+fn rational_decimal_formats_agree_on_digit_count() {
+    let cases = [
+        (2, 1, 3, "2.000"),   // whole number: remainder is zero from the start
+        (7, 4, 2, "1.75"),    // terminates exactly at the requested precision
+        (7, 4, 4, "1.7500"),  // terminates before the requested precision
+        (-2, 1, 2, "-2.00"),
+    ];
+    for (n, den, precision, want) in cases {
+        let v = r(n, den);
+        assert_eq!(v.to_truncate_decimal_string(precision), want, "{}/{} truncate({})", n, den, precision);
+        assert_eq!(v.to_round_decimal_string(precision), want, "{}/{} round({})", n, den, precision);
+        assert_eq!(v.to_ceil_decimal_string(precision), want, "{}/{} ceil({})", n, den, precision);
+        assert_eq!(v.to_floor_decimal_string(precision), want, "{}/{} floor({})", n, den, precision);
+    }
+}
+
+// HALF_EVEN agrees with half-up except on an exact tie (a discarded fraction of precisely
+// 1/2), where it rounds to whichever neighbor has an even last digit.
+#[test]
+fn rational_round_half_even() {
+    let cases = [
+        (1, 8, 2, "0.13", "0.12"),    // 0.125: last kept digit 2 is even -> stays down
+        (-1, 8, 2, "-0.13", "-0.12"),
+        (3, 8, 2, "0.38", "0.38"),    // 0.375: 37 is odd -> half-up and half-even agree on 38
+        (1, 2, 0, "1", "0"),          // 0.5: 0 is even -> stays down under half-even
+        (3, 2, 0, "2", "2"),          // 1.5: 2 is even -> rounds up either way
+        (5, 2, 0, "3", "2"),          // 2.5: 2 is even -> stays down under half-even
+    ];
+    for (n, den, precision, half_up, half_even) in cases {
+        let v = r(n, den);
+        assert_eq!(v.to_round_decimal_string_mode(precision, RoundingMode::HalfUp), half_up, "{}/{} round({}, half-up)", n, den, precision);
+        assert_eq!(v.to_round_decimal_string_mode(precision, RoundingMode::HalfEven), half_even, "{}/{} round({}, half-even)", n, den, precision);
+        // to_round_decimal_string must keep defaulting to half-up.
+        assert_eq!(v.to_round_decimal_string(precision), half_up, "{}/{} round({}) default", n, den, precision);
+    }
 }
 
 #[test]

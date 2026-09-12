@@ -81,11 +81,13 @@ The two are functionally interchangeable (every operation and every output is id
 | `mixed` | a whole part plus a proper fraction | `1 3/4` | `14 2/7` |
 | `decimal` | the full decimal expansion, with any repeating digits wrapped in `{}` | `1.75` | `14.{285714}` |
 | `truncate` | decimal expansion cut off (toward zero) at `--precision` digits | `1.75` | `14.28` |
-| `round` | decimal expansion rounded half-up at `--precision` digits | `1.75` | `14.29` |
+| `round` | decimal expansion rounded (per `--rounding`, half-up by default) at `--precision` digits | `1.75` | `14.29` |
 | `ceil` | rounded up (toward +∞) to `--precision` digits | `2` | `15` |
 | `floor` | rounded down (toward −∞) to `--precision` digits | `1` | `14` |
 
 (`ceil`/`floor` in the table above use the default `--precision=0`, i.e. round to the nearest whole number.)
+
+`truncate`/`round`/`ceil`/`floor` always agree on how many digits a given `--precision` produces, zero-padding out to exactly that many: `--format=truncate --precision=3` on the whole number `2` prints `2.000`, not `2`, matching what `round`/`ceil`/`floor` print for the same input.
 
 ### `--precision`: digits of precision for truncate/round/ceil/floor
 
@@ -94,6 +96,20 @@ An integer, default `0`, giving the number of digits **after** the decimal point
 ```
 $ echo '1234' | decirational --format=truncate --precision=-2
 1200
+```
+
+### `--rounding`: tie-breaking rule for `round`
+
+Only affects `--format=round`, and only when the discarded fraction is *exactly* 1/2 (an exact tie) — every other digit is unaffected. Default is `half-up`:
+
+| Rounding | Meaning | `0.125` at `--precision=2` |
+|---|---|---|
+| `half-up` | an exact tie rounds away from zero (default) | `0.13` |
+| `half-even` | an exact tie rounds to whichever neighbor has an even last digit ("banker's rounding" — the convention many accounting systems use to avoid biasing sums of rounded values upward) | `0.12` |
+
+```
+$ echo '1/8' | decirational --format=round --precision=2 --rounding=half-even
+0.12
 ```
 
 ## 📦 Implementations
@@ -153,7 +169,7 @@ let mut parser = Parser::<DecimalInteger>::new();
 let result = parser.parse(lexer.get_tokens("(1+2)*|-4|^2/[7.5]")?)?;
 ```
 
-Core types: the `CustomInteger` trait, implemented by `DecimalInteger` and `TightInteger` (interchangeable backends, see above); `Rational<T>` for exact fractions, with the same method set as the Java and Go versions (`plus`/`minus`/`multiply`/`divide_by`/`pow`/`reciprocal`, string parsing, and formatting via `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` — see the [API Reference](#-api-reference) below for how each language spells these); `Lexer<T>` and `Parser<T>`; and `Token<T>`, a plain enum standing in for Java's Token class hierarchy.
+Core types: the `CustomInteger` trait, implemented by `DecimalInteger` and `TightInteger` (interchangeable backends, see above); `Rational<T>` for exact fractions, with the same method set as the Java and Go versions (`plus`/`minus`/`multiply`/`divide_by`/`pow`/`reciprocal`, string parsing, and formatting via `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` — see the [API Reference](#-api-reference) below for how each language spells these); `Lexer<T>` and `Parser<T>`; `RoundingMode` (`HalfUp`/`HalfEven`), selecting `to_round_decimal_string_mode`'s tie-breaking rule; and `Token<T>`, a plain enum standing in for Java's Token class hierarchy.
 
 #### Calling the raw C API
 
@@ -173,7 +189,7 @@ cd Rust/decirational
 int main(void) {
     // Exact throughout: 0.1+0.2-0.3 cancels perfectly (no IEEE 754 residue), then adds cleanly to 1/3.
     char *result = decirational_eval("0.1+0.2-0.3+1/3", DECIRATIONAL_BACKEND_DECIMAL,
-                                      DECIRATIONAL_FORMAT_DEFAULT, 0);
+                                      DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     if (!result) {
         fprintf(stderr, "error: %s\n", decirational_last_error());
         return 1;
@@ -195,8 +211,8 @@ For finer-grained control than one-shot `decirational_eval`, build and combine `
 DecirationalRational *a = decirational_rational_parse("1/3", DECIRATIONAL_BACKEND_DECIMAL);
 DecirationalRational *b = decirational_rational_parse("1/6", DECIRATIONAL_BACKEND_DECIMAL);
 DecirationalRational *sum = decirational_rational_add(a, b);
-char *s1 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DEFAULT, 0);  // "1/2" - fraction form
-char *s2 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0);  // "0.5" - decimal form
+char *s1 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);  // "1/2" - fraction form
+char *s2 = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);  // "0.5" - decimal form
 decirational_string_free(s1);
 decirational_string_free(s2);
 decirational_rational_free(sum);
@@ -262,7 +278,7 @@ tokens, _ := lexer.GetTokens("(1+2)*|-4|^2/[7.5]")
 result, _ := parser.Parse(tokens)
 ```
 
-Core types: the generic `CustomInteger[T]` interface, implemented by `DecimalInteger` and `TightInteger` (see above); `Rational[T]` with the same method set as the Java and Rust versions; `Lexer[T]` and `Parser[T]`; and `Token`, backed by small comparable types (`OperatorKind`, `ParenKind`, `FloorKind`, `AbsoluteKind`) plus a generic `Operand[T]`.
+Core types: the generic `CustomInteger[T]` interface, implemented by `DecimalInteger` and `TightInteger` (see above); `Rational[T]` with the same method set as the Java and Rust versions; `Lexer[T]` and `Parser[T]`; `RoundingMode` (`RoundHalfUp`/`RoundHalfEven`), selecting `ToRoundDecimalStringMode`'s tie-breaking rule; and `Token`, backed by small comparable types (`OperatorKind`, `ParenKind`, `FloorKind`, `AbsoluteKind`) plus a generic `Operand[T]`.
 
 ### ☕ Java
 
@@ -325,7 +341,8 @@ Rational<TightInteger> result = parser.parse(lexer.getTokens("(1+2)*|-4|^2/[7.5]
 Core classes:
 
 * `DecimalInteger` / `TightInteger` — arbitrary-precision signed integers (`CustomInteger<T>`), interchangeable backends for `Rational<T>` (see above).
-* `Rational<T>` — exact fractions over a `CustomInteger<T>`: `plus`/`minus`/`multiply`/`divideBy`/`pow`/`reciprocal`; parsing of fractions, decimals, and repeating decimals from strings; and formatting via `toString`, `toFractionString`, `toMixedString`, `toDecimalString`, `toTruncateDecimalString`, `toRoundDecimalString`, `toCeilDecimalString`, `toFloorDecimalString`.
+* `Rational<T>` — exact fractions over a `CustomInteger<T>`: `plus`/`minus`/`multiply`/`divideBy`/`pow`/`reciprocal`; parsing of fractions, decimals, and repeating decimals from strings; and formatting via `toString`, `toFractionString`, `toMixedString`, `toDecimalString`, `toTruncateDecimalString`, `toRoundDecimalString`, `toRoundDecimalStringMode`, `toCeilDecimalString`, `toFloorDecimalString`.
+* `RoundingMode` — `HALF_UP`/`HALF_EVEN`, selecting `toRoundDecimalStringMode`'s tie-breaking rule.
 * `Lexer<T>` — tokenizes an expression string into `Token`s.
 * `Parser<T>` — a recursive-descent evaluator that turns tokens into a `Rational<T>`.
 
@@ -370,6 +387,7 @@ Every value the calculator computes is a `Rational<T>` — an exact fraction ove
 | `pow(exponent)` | `Pow(exponent)` | `pow(exponent)` | exponentiation; a negative exponent is `reciprocal().pow(-exponent)`, matching `^` in the expression language |
 | `partial_cmp`/`PartialOrd`, `eq`/`PartialEq` | `Compare`, `Equals` | `compareTo`, `equals` | ordering and equality by value (`1/2` equals `2/4`) |
 | `Display`, `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` | `String`, `ToFractionString`, `ToMixedString`, `ToDecimalString`, `ToTruncateDecimalString`, `ToRoundDecimalString`, `ToCeilDecimalString`, `ToFloorDecimalString` | `toString`, `toFractionString`, `toMixedString`, `toDecimalString`, `toTruncateDecimalString`, `toRoundDecimalString`, `toCeilDecimalString`, `toFloorDecimalString` | text conversion — one method per [`--format`](#--format-how-the-result-is-rendered) value above |
+| `to_round_decimal_string_mode(round_to, mode)` | `ToRoundDecimalStringMode(roundTo, mode)` | `toRoundDecimalStringMode(round_to, mode)` | `to_round_decimal_string`/`ToRoundDecimalString`/`toRoundDecimalString` with an explicit [`--rounding`](#--rounding-tie-breaking-rule-for-round) rule (`RoundingMode::HalfUp`/`RoundingMode::HalfEven`, `dec.RoundHalfUp`/`dec.RoundHalfEven`, `RoundingMode.HALF_UP`/`RoundingMode.HALF_EVEN`); the no-mode method always uses half-up |
 
 Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`new Rational<>(integer)`/`from_integer`/`NewRationalFromInteger`, denominator `1`), or a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger::new)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go, `"1.5{6}".parse::<Rational<DecimalInteger>>()` or the free function `parse_rational` in Rust — `Rational<T>` implements `FromStr` for any `T: CustomInteger`, which both `DecimalInteger` and `TightInteger` are).
 

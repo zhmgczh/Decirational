@@ -231,6 +231,78 @@ func TestRationalTruncateRoundCeilFloor(t *testing.T) {
 	}
 }
 
+// TestDecimalFormatsAgreeOnDigitCount guards against truncate/round/ceil/floor
+// disagreeing on how many digits after the point a given --precision
+// produces. truncate/ceil/floor used to stop early and drop trailing zeros
+// whenever the exact decimal terminated before reaching the requested
+// precision (e.g. an integer's remainder is zero from the start), while
+// round always padded because its old "add 5 * 10^(-roundTo-1) then
+// truncate" trick made the remainder non-zero almost by construction - so
+// the same --precision silently produced a different number of digits
+// depending on the format. Every case below is already exact at the given
+// precision, so all four formats must produce the identical, fully padded
+// string.
+func TestDecimalFormatsAgreeOnDigitCount(t *testing.T) {
+	cases := []struct {
+		n, d      int64
+		precision int32
+		want      string
+	}{
+		{2, 1, 3, "2.000"},  // whole number: remainder is zero from the start
+		{7, 4, 2, "1.75"},   // terminates exactly at the requested precision
+		{7, 4, 4, "1.7500"}, // terminates before the requested precision
+		{-2, 1, 2, "-2.00"},
+	}
+	for _, c := range cases {
+		v := r(t, c.n, c.d)
+		if got := v.ToTruncateDecimalString(c.precision); got != c.want {
+			t.Errorf("%d/%d truncate(%d) = %s, want %s", c.n, c.d, c.precision, got, c.want)
+		}
+		if got := v.ToRoundDecimalString(c.precision); got != c.want {
+			t.Errorf("%d/%d round(%d) = %s, want %s", c.n, c.d, c.precision, got, c.want)
+		}
+		if got := v.ToCeilDecimalString(c.precision); got != c.want {
+			t.Errorf("%d/%d ceil(%d) = %s, want %s", c.n, c.d, c.precision, got, c.want)
+		}
+		if got := v.ToFloorDecimalString(c.precision); got != c.want {
+			t.Errorf("%d/%d floor(%d) = %s, want %s", c.n, c.d, c.precision, got, c.want)
+		}
+	}
+}
+
+// TestRoundHalfEven checks the new HALF_EVEN tie-breaking mode against
+// half-up on exact ties (a discarded fraction of precisely 1/2), where the
+// two modes actually disagree; away from a tie, both modes always agree, so
+// there is nothing extra to assert there.
+func TestRoundHalfEven(t *testing.T) {
+	cases := []struct {
+		n, d      int64
+		precision int32
+		halfUp    string
+		halfEven  string
+	}{
+		{1, 8, 2, "0.13", "0.12"}, // 0.125: last kept digit 2 is even -> stays down
+		{-1, 8, 2, "-0.13", "-0.12"},
+		{3, 8, 2, "0.38", "0.38"}, // 0.375: last kept digit 8 is even -> stays down (both modes agree on the digit, though for different reasons)
+		{1, 2, 0, "1", "0"},       // 0.5: 0 is even -> stays down under half-even
+		{3, 2, 0, "2", "2"},       // 1.5: 2 is even -> rounds up either way
+		{5, 2, 0, "3", "2"},       // 2.5: 2 is even -> stays down under half-even
+	}
+	for _, c := range cases {
+		v := r(t, c.n, c.d)
+		if got := v.ToRoundDecimalStringMode(c.precision, RoundHalfUp); got != c.halfUp {
+			t.Errorf("%d/%d round(%d, half-up) = %s, want %s", c.n, c.d, c.precision, got, c.halfUp)
+		}
+		if got := v.ToRoundDecimalStringMode(c.precision, RoundHalfEven); got != c.halfEven {
+			t.Errorf("%d/%d round(%d, half-even) = %s, want %s", c.n, c.d, c.precision, got, c.halfEven)
+		}
+		// ToRoundDecimalString must keep defaulting to half-up.
+		if got := v.ToRoundDecimalString(c.precision); got != c.halfUp {
+			t.Errorf("%d/%d round(%d) = %s, want default half-up %s", c.n, c.d, c.precision, got, c.halfUp)
+		}
+	}
+}
+
 func TestRationalMixedString(t *testing.T) {
 	cases := []struct {
 		n, d int64

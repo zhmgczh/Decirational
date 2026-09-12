@@ -135,6 +135,34 @@ public final class RationalTest {
         t.checkEquals("-0", r(-1, 3).toCeilDecimalString(0), "BUG: ceil(-1/3) prints -0 instead of 0");
         t.checkEquals("-0", r(-2, 3).toCeilDecimalString(0), "BUG: ceil(-2/3) prints -0 instead of 0");
 
+        // Truncate/round/ceil/floor must agree on digit count: truncate/ceil/floor used to
+        // stop early and drop trailing zeros whenever the exact decimal terminated before
+        // reaching the requested precision (e.g. an integer's remainder is zero from the
+        // start), while round always padded because its old "add 5 * 10^(-round_to-1) then
+        // truncate" trick made the remainder non-zero almost by construction. Each case below
+        // is already exact at the given precision, so all four formats must produce the
+        // identical, fully padded string.
+        t.checkEquals("2.000", r(2).toTruncateDecimalString(3), "whole number pads truncate(3)");
+        t.checkEquals("2.000", r(2).toRoundDecimalString(3), "whole number pads round(3)");
+        t.checkEquals("2.000", r(2).toCeilDecimalString(3), "whole number pads ceil(3)");
+        t.checkEquals("2.000", r(2).toFloorDecimalString(3), "whole number pads floor(3)");
+        t.checkEquals("1.75", r(7, 4).toTruncateDecimalString(2), "7/4 terminates exactly at precision 2");
+        t.checkEquals("1.7500", r(7, 4).toTruncateDecimalString(4), "7/4 pads out to precision 4");
+        t.checkEquals("1.7500", r(7, 4).toRoundDecimalString(4), "7/4 round(4) matches truncate(4)");
+        t.checkEquals("-2.00", r(-2).toTruncateDecimalString(2), "negative whole number pads truncate(2)");
+
+        // Round HALF_EVEN: agrees with half-up except on an exact tie (a discarded fraction
+        // of precisely 1/2), where it rounds to whichever neighbor has an even last digit.
+        t.checkEquals("0.13", r(1, 8).toRoundDecimalStringMode(2, RoundingMode.HALF_UP), "0.125 half-up rounds away from zero");
+        t.checkEquals("0.12", r(1, 8).toRoundDecimalStringMode(2, RoundingMode.HALF_EVEN), "0.125 half-even stays at the even 2");
+        t.checkEquals("-0.13", r(-1, 8).toRoundDecimalStringMode(2, RoundingMode.HALF_UP), "-0.125 half-up rounds away from zero");
+        t.checkEquals("-0.12", r(-1, 8).toRoundDecimalStringMode(2, RoundingMode.HALF_EVEN), "-0.125 half-even stays at the even 2");
+        t.checkEquals("1", r(1, 2).toRoundDecimalStringMode(0, RoundingMode.HALF_UP), "0.5 half-up rounds up to 1");
+        t.checkEquals("0", r(1, 2).toRoundDecimalStringMode(0, RoundingMode.HALF_EVEN), "0.5 half-even stays at the even 0");
+        t.checkEquals("3", r(5, 2).toRoundDecimalStringMode(0, RoundingMode.HALF_UP), "2.5 half-up rounds up to 3");
+        t.checkEquals("2", r(5, 2).toRoundDecimalStringMode(0, RoundingMode.HALF_EVEN), "2.5 half-even stays at the even 2");
+        t.checkEquals("1", r(1, 2).toRoundDecimalString(0), "toRoundDecimalString still defaults to half-up");
+
         return t;
     }
 }

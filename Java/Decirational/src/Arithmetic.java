@@ -8,6 +8,9 @@ public final class Arithmetic {
     public static final char cyclic_begin = '{';
     public static final char cyclic_end = '}';
 
+    /** Decimal digits extracted per division in convertTightToDecimal: the most that fit in an int word (10^9 < 2^32 <= 10^10). */
+    public static final int DECIMAL_CHUNK_DIGITS = 9;
+
     public static boolean isDigit(final char c) {
         return c >= '0' && c <= '9';
     }
@@ -609,30 +612,43 @@ public final class Arithmetic {
         System.arraycopy(remaining_dividend, starting_index, remainder, remainder_s + remainder_length - valid_length, valid_length);
     }
 
-    private static final int[] decimal_base = new int[]{10};
+    private static final int[] decimal_chunk_base = new int[]{1_000_000_000};
     private static final byte[] tight_base = new byte[]{4, 2, 9, 4, 9, 6, 7, 2, 9, 6};
 
     public static void convertTightToDecimal(final byte[] digits, final int[] integer) {
         convertTightToDecimal(digits, 0, digits.length, integer, 0, integer.length);
     }
 
+    /**
+     * digits_length must be a multiple of DECIMAL_CHUNK_DIGITS large enough to hold every significant digit
+     * (leading zero slots are fine - callers strip those the same way they always have).
+     *
+     * Divides by 10^9 rather than by 10: each division here is a full integer_length-ish-word long division
+     * (binary-search based, unrelated to how large the single-word divisor itself is), so extracting
+     * DECIMAL_CHUNK_DIGITS decimal digits per division instead of one cuts the number of those divisions - and
+     * everything scaling with that count - by roughly DECIMAL_CHUNK_DIGITS-fold.
+     */
     public static void convertTightToDecimal(final byte[] digits, final int digits_s, final int digits_length, final int[] integer, final int integer_s, final int integer_length) {
         final int[] quotient_cache = new int[integer_length];
         System.arraycopy(integer, integer_s, quotient_cache, 0, integer_length);
         final int[] temp = new int[quotient_cache.length];
-        final int[] remainder_cache = new int[decimal_base.length];
-        int digits_index = digits_s + digits_length - 1;
+        final int[] remainder_cache = new int[decimal_chunk_base.length];
+        int digits_index = digits_s + digits_length;
         int left_boundary = getPrecedingZeros(quotient_cache, 0, quotient_cache.length);
         int remaining_length = quotient_cache.length - left_boundary;
         while (getPrecedingZeros(quotient_cache, left_boundary, remaining_length) < quotient_cache.length) {
             Arrays.fill(temp, left_boundary, temp.length, 0);
             remainder_cache[0] = 0;
-            divideAndModulo(temp, left_boundary, remaining_length, remainder_cache, 0, remainder_cache.length, quotient_cache, left_boundary, remaining_length, decimal_base, 0, decimal_base.length);
-            digits[digits_index] = (byte) remainder_cache[0];
+            divideAndModulo(temp, left_boundary, remaining_length, remainder_cache, 0, remainder_cache.length, quotient_cache, left_boundary, remaining_length, decimal_chunk_base, 0, decimal_chunk_base.length);
+            int chunk = remainder_cache[0];
+            for (int i = 0; i < DECIMAL_CHUNK_DIGITS; ++i) {
+                --digits_index;
+                digits[digits_index] = (byte) (chunk % 10);
+                chunk /= 10;
+            }
             left_boundary = getPrecedingZeros(temp, left_boundary, remaining_length);
             remaining_length = temp.length - left_boundary;
             System.arraycopy(temp, left_boundary, quotient_cache, left_boundary, remaining_length);
-            --digits_index;
         }
     }
 

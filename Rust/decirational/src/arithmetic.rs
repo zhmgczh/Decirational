@@ -64,10 +64,18 @@ fn is_zero<L: Limb>(limbs: &[L]) -> bool {
     preceding_zeros(limbs) == limbs.len()
 }
 
-/// Trims leading zero limbs, always keeping at least one.
-fn optimize<L: Limb>(limbs: &[L]) -> Vec<L> {
-    let cut = preceding_zeros(limbs).min(limbs.len() - 1);
-    limbs[cut..].to_vec()
+/// Trims leading zero limbs, always keeping at least one. Every call site
+/// already owns `limbs` (it's the `Vec` a `DecimalInteger`/`TightInteger`
+/// is about to be built from), so this takes it by value and trims in
+/// place - no allocation at all in the (overwhelmingly common) case where
+/// there is nothing to trim, and no separate allocation from the caller's
+/// own `Vec` when there is.
+fn optimize<L: Limb>(mut limbs: Vec<L>) -> Vec<L> {
+    let cut = preceding_zeros(&limbs).min(limbs.len() - 1);
+    if cut > 0 {
+        limbs.drain(..cut);
+    }
+    limbs
 }
 
 /// Forces the sign to non-negative when the magnitude is zero.
@@ -322,7 +330,7 @@ fn gcd<L: Limb>(result: &mut [L], a: &[L], b: &[L]) {
 
 pub fn preceding_zeros_digits(digits: &[u8]) -> usize { preceding_zeros(digits) }
 pub fn is_zero_digits(digits: &[u8]) -> bool { is_zero(digits) }
-pub fn optimize_digits(digits: &[u8]) -> Vec<u8> { optimize(digits) }
+pub fn optimize_digits(digits: Vec<u8>) -> Vec<u8> { optimize(digits) }
 pub fn optimize_sign_digits(negative: bool, digits: &[u8]) -> bool { optimize_sign(negative, digits) }
 pub fn expand_digits(digits: &[u8], length: usize) -> Vec<u8> { expand(digits, length) }
 pub fn add_digits(digits: &mut [u8], other: &[u8]) { add(digits, other) }
@@ -349,7 +357,7 @@ pub fn gcd_digits(result: &mut [u8], a: &[u8], b: &[u8]) { gcd(result, a, b) }
 
 pub fn preceding_zeros_words(words: &[u32]) -> usize { preceding_zeros(words) }
 pub fn is_zero_words(words: &[u32]) -> bool { is_zero(words) }
-pub fn optimize_words(words: &[u32]) -> Vec<u32> { optimize(words) }
+pub fn optimize_words(words: Vec<u32>) -> Vec<u32> { optimize(words) }
 pub fn optimize_sign_words(negative: bool, words: &[u32]) -> bool { optimize_sign(negative, words) }
 pub fn expand_words(words: &[u32], length: usize) -> Vec<u32> { expand(words, length) }
 
@@ -377,8 +385,12 @@ pub fn gcd_words(result: &mut [u32], a: &[u32], b: &[u32]) { gcd(result, a, b) }
 
 // ---- base conversion between decimal digits and base-2^32 words ----
 
-const TIGHT_BASE_AS_WORD: [u32; 1] = [10];
 const TIGHT_BASE_AS_DIGITS: [u8; 10] = [4, 2, 9, 4, 9, 6, 7, 2, 9, 6]; // 4294967296 in decimal digits
+
+/// Decimal digits extracted per division in [`convert_words_to_digits`]: the
+/// most that fit in a `u32` word (`10^9 < 2^32 <= 10^10`).
+pub const DECIMAL_CHUNK_DIGITS: usize = 9;
+const DECIMAL_CHUNK_BASE_AS_WORD: [u32; 1] = [1_000_000_000];
 
 fn decimal_remainder_to_word(remainder: &[u8]) -> u32 {
     let mut value: u64 = 0;
@@ -389,6 +401,17 @@ fn decimal_remainder_to_word(remainder: &[u8]) -> u32 {
 }
 
 /// Writes the decimal digit expansion of `words` (base 2^32) into `digits`.
+/// `digits.len()` must be a multiple of [`DECIMAL_CHUNK_DIGITS`] large
+/// enough to hold every significant digit (leading zero slots are fine -
+/// callers strip those the same way they always have).
+///
+/// Divides by 10^9 rather than by 10: each division here is a full
+/// `words.len()`-ish-word long division (binary-search based, unrelated to
+/// how large the single-word divisor itself is - see `multiplier` above),
+/// so extracting `DECIMAL_CHUNK_DIGITS` decimal digits per division instead
+/// of one cuts the number of those divisions - and everything scaling with
+/// that count (each division's own internal allocation included) - by
+/// roughly `DECIMAL_CHUNK_DIGITS`-fold.
 pub fn convert_words_to_digits(digits: &mut [u8], words: &[u32]) {
     let mut quotient = words.to_vec();
     let mut temp = vec![0u32; quotient.len()];
@@ -398,9 +421,13 @@ pub fn convert_words_to_digits(digits: &mut [u8], words: &[u32]) {
     while !is_zero_words(&quotient[left..]) {
         temp[left..].fill(0);
         remainder[0] = 0;
-        divide_and_modulo_words(&mut temp[left..], &mut remainder, &quotient[left..], &TIGHT_BASE_AS_WORD);
-        digits_index -= 1;
-        digits[digits_index] = remainder[0] as u8;
+        divide_and_modulo_words(&mut temp[left..], &mut remainder, &quotient[left..], &DECIMAL_CHUNK_BASE_AS_WORD);
+        let mut chunk = remainder[0];
+        for _ in 0..DECIMAL_CHUNK_DIGITS {
+            digits_index -= 1;
+            digits[digits_index] = (chunk % 10) as u8;
+            chunk /= 10;
+        }
         left += preceding_zeros_words(&temp[left..]);
         let len = quotient.len() - left;
         quotient[left..].copy_from_slice(&temp[left..left + len]);

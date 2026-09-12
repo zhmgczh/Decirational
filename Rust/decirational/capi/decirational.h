@@ -32,7 +32,8 @@
  * ---- Example ----
  *
  *   char *result = decirational_eval("100/7", DECIRATIONAL_BACKEND_DECIMAL,
- *                                     DECIRATIONAL_FORMAT_DECIMAL, 0);
+ *                                     DECIRATIONAL_FORMAT_DECIMAL, 0,
+ *                                     DECIRATIONAL_ROUNDING_HALF_UP);
  *   if (!result) {
  *       fprintf(stderr, "error: %s\n", decirational_last_error());
  *   } else {
@@ -64,6 +65,11 @@ extern "C" {
 #define DECIRATIONAL_FORMAT_CEIL     6
 #define DECIRATIONAL_FORMAT_FLOOR    7
 
+/* ---- rounding values, matching the CLI's --rounding flag; only consulted
+ * when format is DECIRATIONAL_FORMAT_ROUND ---- */
+#define DECIRATIONAL_ROUNDING_HALF_UP   0 /* an exact tie rounds away from zero (default) */
+#define DECIRATIONAL_ROUNDING_HALF_EVEN 1 /* an exact tie rounds to the nearest even digit ("banker's rounding") */
+
 /* Opaque handle to a Rational value. */
 typedef struct DecirationalRational DecirationalRational;
 
@@ -83,8 +89,10 @@ const char *decirational_version(void);
 
 /* Evaluates a full expression string (+ - * / // % ^, (), [] floor, ||
  * absolute value, decimal and repeating-decimal literals) and returns the
- * formatted result, or NULL on error. Free with decirational_string_free. */
-char *decirational_eval(const char *expression, int32_t integer_backend, int32_t format, int32_t precision);
+ * formatted result, or NULL on error. rounding (DECIRATIONAL_ROUNDING_*) is
+ * only consulted when format is DECIRATIONAL_FORMAT_ROUND. Free with
+ * decirational_string_free. */
+char *decirational_eval(const char *expression, int32_t integer_backend, int32_t format, int32_t precision, int32_t rounding);
 
 /* ---- construction / destruction ---- */
 
@@ -138,11 +146,12 @@ int32_t decirational_rational_is_integer(const DecirationalRational *r);
 
 /* ---- formatting ---- */
 
-/* Renders r per format/precision (DECIRATIONAL_FORMAT_* /
- * DECIRATIONAL_BACKEND_* above, matching the CLI's --format/--precision).
- * Returns a newly allocated string, or NULL on error. Free with
- * decirational_string_free. */
-char *decirational_rational_to_string(const DecirationalRational *r, int32_t format, int32_t precision);
+/* Renders r per format/precision/rounding (DECIRATIONAL_FORMAT_* /
+ * DECIRATIONAL_ROUNDING_* above, matching the CLI's
+ * --format/--precision/--rounding). rounding is only consulted when format
+ * is DECIRATIONAL_FORMAT_ROUND. Returns a newly allocated string, or NULL on
+ * error. Free with decirational_string_free. */
+char *decirational_rational_to_string(const DecirationalRational *r, int32_t format, int32_t precision, int32_t rounding);
 
 /* The (always-reduced) numerator, as a decimal string. */
 char *decirational_rational_numerator_string(const DecirationalRational *r);

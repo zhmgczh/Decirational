@@ -1,12 +1,12 @@
 //! A REPL that reads one arithmetic expression per line from standard input
 //! and prints its value.
 
-use decirational::{CustomInteger, DecimalInteger, Lexer, Parser, Rational, TightInteger};
+use decirational::{CustomInteger, DecimalInteger, Lexer, Parser, Rational, RoundingMode, TightInteger};
 use std::io::{self, BufRead, Write};
 use std::panic::{self, AssertUnwindSafe};
 use std::process::exit;
 
-const USAGE: &str = "Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N]
+const USAGE: &str = "Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N] [--rounding=<mode>]
 
   --integer=decimal   use DecimalInteger for large integers (default)
   --integer=tight     use TightInteger for large integers
@@ -24,6 +24,11 @@ const USAGE: &str = "Usage: decirational [--integer=decimal|tight] [--format=<fo
                        ignored by default/fraction/mixed/decimal. N may be negative to round to
                        tens, hundreds, etc. before the point.
 
+  --rounding=half-up    an exact tie rounds away from zero (default); only affects --format=round
+  --rounding=half-even  an exact tie rounds to the nearest even digit (\"banker's rounding\"),
+                        the convention many accounting systems use to avoid biasing sums of
+                        rounded values upward; only affects --format=round
+
 Reads one arithmetic expression per line from standard input and prints its value.";
 
 fn fail(message: &str) -> ! {
@@ -35,6 +40,7 @@ fn fail(message: &str) -> ! {
 fn main() {
     let mut integer_type = "decimal".to_string();
     let mut format = "default".to_string();
+    let mut rounding = "half-up".to_string();
     let mut precision: i32 = 0;
 
     for arg in std::env::args().skip(1) {
@@ -45,6 +51,8 @@ fn main() {
             integer_type = v.to_string();
         } else if let Some(v) = arg.strip_prefix("--format=") {
             format = v.to_string();
+        } else if let Some(v) = arg.strip_prefix("--rounding=") {
+            rounding = v.to_string();
         } else if let Some(v) = arg.strip_prefix("--precision=") {
             match v.parse::<i32>() {
                 Ok(n) => precision = n,
@@ -55,9 +63,13 @@ fn main() {
         }
     }
 
+    let rounding_mode = match parse_rounding_mode(&rounding) {
+        Ok(mode) => mode,
+        Err(message) => fail(&message),
+    };
     let result = match integer_type.as_str() {
-        "decimal" => run::<DecimalInteger>(&format, precision),
-        "tight" => run::<TightInteger>(&format, precision),
+        "decimal" => run::<DecimalInteger>(&format, precision, rounding_mode),
+        "tight" => run::<TightInteger>(&format, precision, rounding_mode),
         other => Err(format!("unknown integer type: {} (expected 'decimal' or 'tight')", other)),
     };
     if let Err(message) = result {
@@ -65,16 +77,24 @@ fn main() {
     }
 }
 
+fn parse_rounding_mode(rounding: &str) -> Result<RoundingMode, String> {
+    match rounding {
+        "half-up" => Ok(RoundingMode::HalfUp),
+        "half-even" => Ok(RoundingMode::HalfEven),
+        other => Err(format!("unknown rounding mode: {} (expected half-up or half-even)", other)),
+    }
+}
+
 type Formatter<T> = Box<dyn Fn(&Rational<T>) -> String>;
 
-fn make_formatter<T: CustomInteger>(format: &str, precision: i32) -> Result<Formatter<T>, String> {
+fn make_formatter<T: CustomInteger>(format: &str, precision: i32, rounding: RoundingMode) -> Result<Formatter<T>, String> {
     match format {
         "default" => Ok(Box::new(|r: &Rational<T>| r.to_string())),
         "fraction" => Ok(Box::new(|r: &Rational<T>| r.to_fraction_string())),
         "mixed" => Ok(Box::new(|r: &Rational<T>| r.to_mixed_string())),
         "decimal" => Ok(Box::new(|r: &Rational<T>| r.to_decimal_string())),
         "truncate" => Ok(Box::new(move |r: &Rational<T>| r.to_truncate_decimal_string(precision))),
-        "round" => Ok(Box::new(move |r: &Rational<T>| r.to_round_decimal_string(precision))),
+        "round" => Ok(Box::new(move |r: &Rational<T>| r.to_round_decimal_string_mode(precision, rounding))),
         "ceil" => Ok(Box::new(move |r: &Rational<T>| r.to_ceil_decimal_string(precision))),
         "floor" => Ok(Box::new(move |r: &Rational<T>| r.to_floor_decimal_string(precision))),
         other => Err(format!(
@@ -84,8 +104,8 @@ fn make_formatter<T: CustomInteger>(format: &str, precision: i32) -> Result<Form
     }
 }
 
-fn run<T: CustomInteger + 'static>(format: &str, precision: i32) -> Result<(), String> {
-    let formatter = make_formatter::<T>(format, precision)?;
+fn run<T: CustomInteger + 'static>(format: &str, precision: i32, rounding: RoundingMode) -> Result<(), String> {
+    let formatter = make_formatter::<T>(format, precision, rounding)?;
     let lexer = Lexer::<T>::new();
     let mut parser = Parser::<T>::new();
     let stdin = io::stdin();

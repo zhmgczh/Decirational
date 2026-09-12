@@ -81,8 +81,12 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     public DecimalInteger toDecimalInteger() {
-        int decimal_length = (int) (integer.length * Arithmetic.tight_to_decimal_length_ratio + 1) + 1;
-        byte[] digits = new byte[decimal_length];
+        int significant_estimate = (int) (integer.length * Arithmetic.tight_to_decimal_length_ratio + 1) + 1;
+        // convertTightToDecimal writes DECIMAL_CHUNK_DIGITS digits per division, so the buffer must hold a whole
+        // number of those chunks - rounded up from the safe estimate above, never down, so it's still large
+        // enough for every significant digit.
+        int chunks = (significant_estimate + Arithmetic.DECIMAL_CHUNK_DIGITS - 1) / Arithmetic.DECIMAL_CHUNK_DIGITS;
+        byte[] digits = new byte[chunks * Arithmetic.DECIMAL_CHUNK_DIGITS];
         Arithmetic.convertTightToDecimal(digits, integer);
         return new DecimalInteger(digits, negative);
     }

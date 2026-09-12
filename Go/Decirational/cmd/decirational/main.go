@@ -13,7 +13,7 @@ import (
 	dec "github.com/zhmgczh/Decirational/Go/Decirational"
 )
 
-const usage = `Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N]
+const usage = `Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N] [--rounding=<mode>]
 
   --integer=decimal   use DecimalInteger for large integers (default)
   --integer=tight     use TightInteger for large integers
@@ -31,11 +31,17 @@ const usage = `Usage: decirational [--integer=decimal|tight] [--format=<format>]
                        ignored by default/fraction/mixed/decimal. N may be negative to round to
                        tens, hundreds, etc. before the point.
 
+  --rounding=half-up    an exact tie rounds away from zero (default); only affects --format=round
+  --rounding=half-even  an exact tie rounds to the nearest even digit ("banker's rounding"),
+                        the convention many accounting systems use to avoid biasing sums of
+                        rounded values upward; only affects --format=round
+
 Reads one arithmetic expression per line from standard input and prints its value.`
 
 func main() {
 	integerType := "decimal"
 	format := "default"
+	rounding := "half-up"
 	var precision int32 = 0
 
 	for _, arg := range os.Args[1:] {
@@ -47,6 +53,8 @@ func main() {
 			integerType = strings.TrimPrefix(arg, "--integer=")
 		case strings.HasPrefix(arg, "--format="):
 			format = strings.TrimPrefix(arg, "--format=")
+		case strings.HasPrefix(arg, "--rounding="):
+			rounding = strings.TrimPrefix(arg, "--rounding=")
 		case strings.HasPrefix(arg, "--precision="):
 			value := strings.TrimPrefix(arg, "--precision=")
 			// Parsed as int32 (not Go's native, wider int) so an out-of-range
@@ -63,17 +71,32 @@ func main() {
 		}
 	}
 
-	var err error
+	roundingMode, err := parseRoundingMode(rounding)
+	if err != nil {
+		fail(err.Error())
+	}
+
 	switch integerType {
 	case "decimal":
-		err = run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, format, precision, os.Stdin, os.Stdout)
+		err = run(dec.NewDecimalIntegerFromInt32, dec.ParseDecimalInteger, format, precision, roundingMode, os.Stdin, os.Stdout)
 	case "tight":
-		err = run(dec.NewTightIntegerFromInt32, dec.ParseTightInteger, format, precision, os.Stdin, os.Stdout)
+		err = run(dec.NewTightIntegerFromInt32, dec.ParseTightInteger, format, precision, roundingMode, os.Stdin, os.Stdout)
 	default:
 		err = fmt.Errorf("unknown integer type: %s (expected 'decimal' or 'tight')", integerType)
 	}
 	if err != nil {
 		fail(err.Error())
+	}
+}
+
+func parseRoundingMode(rounding string) (dec.RoundingMode, error) {
+	switch rounding {
+	case "half-up":
+		return dec.RoundHalfUp, nil
+	case "half-even":
+		return dec.RoundHalfEven, nil
+	default:
+		return 0, fmt.Errorf("unknown rounding mode: %s (expected half-up or half-even)", rounding)
 	}
 }
 
@@ -94,8 +117,8 @@ func fail(message string) {
 // code of 0, unless the caller separately checks Scanner.Err().
 // bufio.Reader.ReadString has no analogous limit: it grows its buffer to fit
 // whatever it reads.
-func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error), format string, precision int32, in io.Reader, out io.Writer) error {
-	formatter, err := makeFormatter[T](format, precision)
+func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error), format string, precision int32, rounding dec.RoundingMode, in io.Reader, out io.Writer) error {
+	formatter, err := makeFormatter[T](format, precision, rounding)
 	if err != nil {
 		return err
 	}
@@ -145,7 +168,7 @@ func evalLine[T dec.CustomInteger[T]](lexer dec.Lexer[T], parser *dec.Parser[T],
 	return formatter(value), nil
 }
 
-func makeFormatter[T dec.CustomInteger[T]](format string, precision int32) (func(dec.Rational[T]) string, error) {
+func makeFormatter[T dec.CustomInteger[T]](format string, precision int32, rounding dec.RoundingMode) (func(dec.Rational[T]) string, error) {
 	switch format {
 	case "default":
 		return func(r dec.Rational[T]) string { return r.String() }, nil
@@ -158,7 +181,7 @@ func makeFormatter[T dec.CustomInteger[T]](format string, precision int32) (func
 	case "truncate":
 		return func(r dec.Rational[T]) string { return r.ToTruncateDecimalString(precision) }, nil
 	case "round":
-		return func(r dec.Rational[T]) string { return r.ToRoundDecimalString(precision) }, nil
+		return func(r dec.Rational[T]) string { return r.ToRoundDecimalStringMode(precision, rounding) }, nil
 	case "ceil":
 		return func(r dec.Rational[T]) string { return r.ToCeilDecimalString(precision) }, nil
 	case "floor":

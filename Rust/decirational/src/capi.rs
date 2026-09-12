@@ -22,7 +22,7 @@
 //!     (decimal vs. tight, chosen at construction time); combining two
 //!     handles of different backends in one call is an error, not UB.
 
-use crate::{CustomInteger, DResult, DecimalInteger, Lexer, Parser, Rational, TightInteger};
+use crate::{CustomInteger, DResult, DecimalInteger, Lexer, Parser, Rational, RoundingMode, TightInteger};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::ffi::{c_char, c_int, c_longlong, CStr, CString};
@@ -42,6 +42,10 @@ const FORMAT_TRUNCATE: c_int = 4;
 const FORMAT_ROUND: c_int = 5;
 const FORMAT_CEIL: c_int = 6;
 const FORMAT_FLOOR: c_int = 7;
+
+// ---- rounding values, matching the CLI's --rounding flag; only consulted for FORMAT_ROUND ----
+const ROUNDING_HALF_UP: c_int = 0;
+const ROUNDING_HALF_EVEN: c_int = 1;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
@@ -169,18 +173,26 @@ fn string_to_ptr(result: Option<String>) -> *mut c_char {
     }
 }
 
-fn format_rational<T: CustomInteger>(r: &Rational<T>, format: c_int, precision: i32) -> Result<String, String> {
+fn format_rational<T: CustomInteger>(r: &Rational<T>, format: c_int, precision: i32, rounding: c_int) -> Result<String, String> {
     Ok(match format {
         FORMAT_DEFAULT => r.to_string(),
         FORMAT_FRACTION => r.to_fraction_string(),
         FORMAT_MIXED => r.to_mixed_string(),
         FORMAT_DECIMAL => r.to_decimal_string(),
         FORMAT_TRUNCATE => r.to_truncate_decimal_string(precision),
-        FORMAT_ROUND => r.to_round_decimal_string(precision),
+        FORMAT_ROUND => r.to_round_decimal_string_mode(precision, rounding_mode(rounding)?),
         FORMAT_CEIL => r.to_ceil_decimal_string(precision),
         FORMAT_FLOOR => r.to_floor_decimal_string(precision),
         other => return Err(format!("unknown format: {}", other)),
     })
+}
+
+fn rounding_mode(rounding: c_int) -> Result<RoundingMode, String> {
+    match rounding {
+        ROUNDING_HALF_UP => Ok(RoundingMode::HalfUp),
+        ROUNDING_HALF_EVEN => Ok(RoundingMode::HalfEven),
+        other => Err(format!("unknown rounding: {}", other)),
+    }
 }
 
 // ---- the opaque Rational handle ----
@@ -200,12 +212,14 @@ fn box_handle(h: RationalHandle) -> *mut DecirationalRational {
 }
 
 /// Evaluates a full expression string (the same grammar and `--format`/
-/// `--precision` semantics as the `decirational` CLI: `+ - * / // % ^`,
-/// `()`, `[]` floor, `||` absolute value, decimal and repeating-decimal
-/// literals) and returns the formatted result as a newly allocated string,
-/// or NULL on error. Free the result with `decirational_string_free`.
+/// `--precision`/`--rounding` semantics as the `decirational` CLI:
+/// `+ - * / // % ^`, `()`, `[]` floor, `||` absolute value, decimal and
+/// repeating-decimal literals) and returns the formatted result as a newly
+/// allocated string, or NULL on error. `rounding` (the ROUNDING_* constants
+/// in decirational.h) is only consulted when `format` is FORMAT_ROUND. Free
+/// the result with `decirational_string_free`.
 #[no_mangle]
-pub extern "C" fn decirational_eval(expression: *const c_char, integer_backend: c_int, format: c_int, precision: c_int) -> *mut c_char {
+pub extern "C" fn decirational_eval(expression: *const c_char, integer_backend: c_int, format: c_int, precision: c_int, rounding: c_int) -> *mut c_char {
     let result = guard(move || {
         let expr = unsafe { cstr_to_str(expression) }?;
         match integer_backend {
@@ -214,14 +228,14 @@ pub extern "C" fn decirational_eval(expression: *const c_char, integer_backend: 
                 let mut parser = Parser::<DecimalInteger>::new();
                 let tokens = lexer.get_tokens(expr).map_err(|e| e.to_string())?;
                 let value = parser.parse(tokens).map_err(|e| e.to_string())?;
-                format_rational(&value, format, precision)
+                format_rational(&value, format, precision, rounding)
             }
             BACKEND_TIGHT => {
                 let lexer = Lexer::<TightInteger>::new();
                 let mut parser = Parser::<TightInteger>::new();
                 let tokens = lexer.get_tokens(expr).map_err(|e| e.to_string())?;
                 let value = parser.parse(tokens).map_err(|e| e.to_string())?;
-                format_rational(&value, format, precision)
+                format_rational(&value, format, precision, rounding)
             }
             other => Err(format!("unknown integer_backend: {}", other)),
         }
@@ -441,19 +455,20 @@ pub extern "C" fn decirational_rational_is_integer(r: *const DecirationalRationa
     bool_query(r, |x| x.is_integer(), |x| x.is_integer())
 }
 
-/// Renders `r` per `format`/`precision` (the same values as `--format`/
-/// `--precision` on the CLI; see the FORMAT_* constants in decirational.h).
-/// Returns a newly allocated string, or NULL on error. Free with
-/// `decirational_string_free`.
+/// Renders `r` per `format`/`precision`/`rounding` (the same values as
+/// `--format`/`--precision`/`--rounding` on the CLI; see the FORMAT_* and
+/// ROUNDING_* constants in decirational.h). `rounding` is only consulted
+/// when `format` is FORMAT_ROUND. Returns a newly allocated string, or NULL
+/// on error. Free with `decirational_string_free`.
 #[no_mangle]
-pub extern "C" fn decirational_rational_to_string(r: *const DecirationalRational, format: c_int, precision: c_int) -> *mut c_char {
+pub extern "C" fn decirational_rational_to_string(r: *const DecirationalRational, format: c_int, precision: c_int, rounding: c_int) -> *mut c_char {
     let result = guard(move || unsafe {
         if r.is_null() {
             return Err("null Rational handle".to_string());
         }
         match &(*r).0 {
-            RationalHandle::Decimal(x) => format_rational(x, format, precision),
-            RationalHandle::Tight(x) => format_rational(x, format, precision),
+            RationalHandle::Decimal(x) => format_rational(x, format, precision, rounding),
+            RationalHandle::Tight(x) => format_rational(x, format, precision, rounding),
         }
     });
     string_to_ptr(result)
@@ -507,7 +522,7 @@ mod tests {
     #[test]
     fn eval_round_trip() {
         let expr = CString::new("100/7").unwrap();
-        let r = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_DECIMAL, 0);
+        let r = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_DECIMAL, 0, ROUNDING_HALF_UP);
         assert!(!r.is_null());
         assert_eq!(unsafe { to_string(r) }, "14.{285714}");
         decirational_string_free(r);
@@ -516,7 +531,7 @@ mod tests {
     #[test]
     fn eval_error_sets_last_error() {
         let expr = CString::new("1/0").unwrap();
-        let r = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_DEFAULT, 0);
+        let r = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_DEFAULT, 0, ROUNDING_HALF_UP);
         assert!(r.is_null());
         let err = decirational_last_error();
         assert!(!err.is_null());
@@ -532,7 +547,7 @@ mod tests {
         assert!(!ra.is_null() && !rb.is_null());
         let sum = decirational_rational_add(ra, rb);
         assert!(!sum.is_null());
-        let s = decirational_rational_to_string(sum, FORMAT_DEFAULT, 0);
+        let s = decirational_rational_to_string(sum, FORMAT_DEFAULT, 0, ROUNDING_HALF_UP);
         assert_eq!(unsafe { to_string(s) }, "1/2");
         decirational_string_free(s);
         decirational_rational_free(sum);
@@ -541,9 +556,22 @@ mod tests {
     }
 
     #[test]
+    fn rounding_mode_selects_half_up_or_half_even() {
+        let expr = CString::new("1/8").unwrap();
+        let up = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_ROUND, 2, ROUNDING_HALF_UP);
+        assert_eq!(unsafe { to_string(up) }, "0.13");
+        decirational_string_free(up);
+        let even = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_ROUND, 2, ROUNDING_HALF_EVEN);
+        assert_eq!(unsafe { to_string(even) }, "0.12");
+        decirational_string_free(even);
+        let bad = decirational_eval(expr.as_ptr(), BACKEND_DECIMAL, FORMAT_ROUND, 2, 99);
+        assert!(bad.is_null(), "an unknown rounding value must be a normal error, not a crash");
+    }
+
+    #[test]
     fn panic_is_caught_not_propagated() {
         let five = decirational_rational_from_i64(5, BACKEND_DECIMAL);
-        let r = decirational_rational_to_string(five, FORMAT_ROUND, i32::MIN);
+        let r = decirational_rational_to_string(five, FORMAT_ROUND, i32::MIN, ROUNDING_HALF_UP);
         assert!(r.is_null(), "a Rust panic must surface as a null return, never unwind across the FFI boundary");
         let err = decirational_last_error();
         assert_eq!(unsafe { to_string(err) }, "cannot round to the minimum representable precision");
@@ -564,6 +592,6 @@ mod tests {
     fn null_handles_are_errors_not_crashes() {
         assert!(decirational_rational_add(ptr::null(), ptr::null()).is_null());
         assert_eq!(decirational_rational_is_zero(ptr::null()), -1);
-        assert!(decirational_rational_to_string(ptr::null(), FORMAT_DEFAULT, 0).is_null());
+        assert!(decirational_rational_to_string(ptr::null(), FORMAT_DEFAULT, 0, ROUNDING_HALF_UP).is_null());
     }
 }

@@ -80,8 +80,13 @@ func (t TightInteger) String() string {
 
 // ToDecimalInteger converts this TightInteger to the base-10 representation.
 func (t TightInteger) ToDecimalInteger() DecimalInteger {
-	decimalLength := int(float64(len(t.words))*tightToDecimalLengthRatio+1) + 1
-	digits := make([]byte, decimalLength)
+	significantEstimate := int(float64(len(t.words))*tightToDecimalLengthRatio+1) + 1
+	// convertWordsToDigits writes decimalChunkDigits digits per division, so
+	// the buffer must hold a whole number of those chunks - rounded up from
+	// the safe estimate above, never down, so it's still large enough for
+	// every significant digit.
+	chunks := (significantEstimate + decimalChunkDigits - 1) / decimalChunkDigits
+	digits := make([]byte, chunks*decimalChunkDigits)
 	convertWordsToDigits(digits, t.words)
 	return decimalIntegerUnsafe(digits, t.negative)
 }

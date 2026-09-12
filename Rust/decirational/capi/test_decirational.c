@@ -44,29 +44,29 @@ int main(void) {
     printf("decirational C API version: %s\n\n", decirational_version());
 
     /* ---- decirational_eval: the whole CLI as one call ---- */
-    char *r = decirational_eval("100/7", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DECIMAL, 0);
+    char *r = decirational_eval("100/7", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("eval(100/7, decimal)", r, "14.{285714}");
     decirational_string_free(r);
 
-    r = decirational_eval("2^10 + |3-10| * [7.5]", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DECIMAL, 0);
+    r = decirational_eval("2^10 + |3-10| * [7.5]", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("eval(combined expression)", r, "1073");
     decirational_string_free(r);
 
-    r = decirational_eval("100/7", DECIRATIONAL_BACKEND_TIGHT, DECIRATIONAL_FORMAT_DECIMAL, 0);
+    r = decirational_eval("100/7", DECIRATIONAL_BACKEND_TIGHT, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("eval(100/7, tight)", r, "14.{285714}");
     decirational_string_free(r);
 
-    r = decirational_eval("100//7", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_eval("100//7", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("eval(100//7)", r, "14");
     decirational_string_free(r);
 
-    r = decirational_eval("1/0", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_eval("1/0", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_null("eval(1/0) is an error", r);
 
-    r = decirational_eval("2#3", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_eval("2#3", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_null("eval(illegal char) is an error", r);
 
-    r = decirational_eval(NULL, DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_eval(NULL, DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_null("eval(NULL) is an error, not a crash", r);
     printf("\n");
 
@@ -76,16 +76,16 @@ int main(void) {
     assert(a && b);
 
     DecirationalRational *sum = decirational_rational_add(a, b);
-    r = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0);
+    r = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("1/3 + 1/6 (decimal)", r, "0.5");
     decirational_string_free(r);
-    r = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_rational_to_string(sum, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("1/3 + 1/6 (default/fraction)", r, "1/2");
     decirational_string_free(r);
     decirational_rational_free(sum);
 
     DecirationalRational *seven_fourths = decirational_rational_parse("7/4", DECIRATIONAL_BACKEND_DECIMAL);
-    r = decirational_rational_to_string(seven_fourths, DECIRATIONAL_FORMAT_MIXED, 0);
+    r = decirational_rational_to_string(seven_fourths, DECIRATIONAL_FORMAT_MIXED, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("7/4 mixed", r, "1 3/4");
     decirational_string_free(r);
 
@@ -98,7 +98,7 @@ int main(void) {
     decirational_rational_free(seven_fourths);
 
     DecirationalRational *neg_one_third = decirational_rational_parse("-1/3", DECIRATIONAL_BACKEND_DECIMAL);
-    r = decirational_rational_to_string(neg_one_third, DECIRATIONAL_FORMAT_DECIMAL, 0);
+    r = decirational_rational_to_string(neg_one_third, DECIRATIONAL_FORMAT_DECIMAL, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("-1/3 decimal (repeating)", r, "-0.{3}");
     decirational_string_free(r);
     check_int("-1/3 is_negative", decirational_rational_is_negative(neg_one_third), 1);
@@ -117,18 +117,18 @@ int main(void) {
     /* pow, negate, abs, compare */
     DecirationalRational *two = decirational_rational_from_i64(2, DECIRATIONAL_BACKEND_DECIMAL);
     DecirationalRational *two_pow_neg2 = decirational_rational_pow(two, -2);
-    r = decirational_rational_to_string(two_pow_neg2, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_rational_to_string(two_pow_neg2, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("2^-2", r, "1/4");
     decirational_string_free(r);
     decirational_rational_free(two_pow_neg2);
     decirational_rational_free(two);
 
     DecirationalRational *neg_a = decirational_rational_negate(a);
-    r = decirational_rational_to_string(neg_a, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_rational_to_string(neg_a, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("-(1/3)", r, "-1/3");
     decirational_string_free(r);
     DecirationalRational *abs_neg_a = decirational_rational_abs(neg_a);
-    r = decirational_rational_to_string(abs_neg_a, DECIRATIONAL_FORMAT_DEFAULT, 0);
+    r = decirational_rational_to_string(abs_neg_a, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
     check_str("|-(1/3)|", r, "1/3");
     decirational_string_free(r);
     decirational_rational_free(abs_neg_a);
@@ -150,9 +150,20 @@ int main(void) {
     /* round_to == INT32_MIN is a documented panic in Rust; must surface as
      * NULL + error here, not abort the process. */
     DecirationalRational *five = decirational_rational_from_i64(5, DECIRATIONAL_BACKEND_DECIMAL);
-    r = decirational_rational_to_string(five, DECIRATIONAL_FORMAT_ROUND, INT32_MIN);
+    r = decirational_rational_to_string(five, DECIRATIONAL_FORMAT_ROUND, INT32_MIN, DECIRATIONAL_ROUNDING_HALF_UP);
     check_null("round at INT32_MIN precision (a Rust panic) is caught, not UB", r);
     decirational_rational_free(five);
+
+    /* --rounding: half-up rounds an exact tie away from zero, half-even
+     * rounds it to the nearest even digit. */
+    r = decirational_eval("1/8", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_ROUND, 2, DECIRATIONAL_ROUNDING_HALF_UP);
+    check_str("1/8 round(2, half-up)", r, "0.13");
+    decirational_string_free(r);
+    r = decirational_eval("1/8", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_ROUND, 2, DECIRATIONAL_ROUNDING_HALF_EVEN);
+    check_str("1/8 round(2, half-even)", r, "0.12");
+    decirational_string_free(r);
+    r = decirational_eval("1/8", DECIRATIONAL_BACKEND_DECIMAL, DECIRATIONAL_FORMAT_ROUND, 2, 99);
+    check_null("unknown rounding value is an error, not a crash", r);
 
     decirational_rational_free(a);
     decirational_rational_free(b);

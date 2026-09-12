@@ -6,6 +6,18 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
+/// How [`Rational::to_round_decimal_string_mode`] resolves an exact tie (a discarded fraction of precisely 1/2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoundingMode {
+    /// Rounds an exact tie away from zero. This is the mode
+    /// [`Rational::to_round_decimal_string`] has always used.
+    HalfUp,
+    /// Rounds an exact tie to whichever neighbor has an even last digit
+    /// ("banker's rounding"), the convention many accounting systems use
+    /// to avoid biasing sums of rounded values upward.
+    HalfEven,
+}
+
 /// An exact fraction over a `CustomInteger` backend.
 #[derive(Debug, Clone)]
 pub struct Rational<T: CustomInteger> {
@@ -22,8 +34,8 @@ impl<T: CustomInteger> Rational<T> {
         Rational { numerator: one.clone(), denominator: one }
     }
 
-    fn get_five(&self) -> T {
-        T::from_i64(5)
+    fn get_two(&self) -> T {
+        T::from_i64(2)
     }
 
     fn get_ten(&self) -> T {
@@ -148,30 +160,77 @@ impl<T: CustomInteger> Rational<T> {
         let mut decimal = String::new();
         decimal.push_str(sign);
         decimal.push_str(&whole_integer_str);
-        if !remainder.is_zero() {
-            decimal.push('.');
-        }
-        let mut index = 0;
-        while index < round_to && !remainder.is_zero() {
+        // round_to > 0 here (round_to <= 0 already returned above), so every
+        // caller asking for a given precision gets exactly that many digits
+        // after the point - including trailing zeros - rather than the
+        // digit count silently varying with how many of them happen to be
+        // zero. This also keeps to_truncate_decimal_string aligned with
+        // to_round_decimal_string, to_ceil_decimal_string, and
+        // to_floor_decimal_string, which all format their already-rounded
+        // value through this method.
+        decimal.push('.');
+        for _ in 0..round_to {
             remainder = remainder.multiply(&ten);
             let (digit, next_remainder) = remainder.divide_by_and_modulo(&self.denominator).expect("denominator is never zero");
             remainder = next_remainder;
             decimal.push(digit.to_string().as_bytes()[0] as char);
-            index += 1;
         }
         decimal
     }
 
     pub fn to_round_decimal_string(&self, round_to: i32) -> String {
+        self.to_round_decimal_string_mode(round_to, RoundingMode::HalfUp)
+    }
+
+    /// [`Self::to_round_decimal_string`] with an explicit tie-breaking rule; see [`RoundingMode`].
+    pub fn to_round_decimal_string_mode(&self, round_to: i32, mode: RoundingMode) -> String {
+        self.round_to_mode(round_to, mode).to_truncate_decimal_string(round_to)
+    }
+
+    /// Returns the exact value of `self` rounded to `round_to` digits after the decimal
+    /// point (`round_to` may be negative, rounding before the point instead). Compares the
+    /// discarded fraction directly against 1/2 rather than the previous "add
+    /// 5 * 10^(-round_to-1) then truncate" trick, so it generalizes cleanly to modes other
+    /// than half-up.
+    fn round_to_mode(&self, round_to: i32, mode: RoundingMode) -> Self {
         if round_to == i32::MIN {
             panic!("cannot round to the minimum representable precision");
         }
-        let five = Rational { numerator: self.get_five(), denominator: self.denominator.pow(0).expect("pow(0) never fails") };
-        let ten = Rational { numerator: self.get_ten(), denominator: self.denominator.pow(0).expect("pow(0) never fails") };
-        let shift_base = ten.pow(-round_to - 1).expect("exponent is in range");
-        let delta = five.multiply(&shift_base);
-        let temp = if self.is_negative() { self.minus(&delta) } else { self.plus(&delta) };
-        temp.to_truncate_decimal_string(round_to)
+        if self.is_zero() {
+            return self.clone();
+        }
+        let one = self.denominator.pow(0).expect("pow(0) never fails");
+        let ten = Rational { numerator: self.get_ten(), denominator: one.clone() };
+        let scale_factor = ten.pow(round_to).expect("exponent is in range");
+        let abs_scaled = self.abs().multiply(&scale_factor);
+        let rounded_abs_int = self.rounded_abs_int(&abs_scaled, mode);
+        let result = Rational { numerator: rounded_abs_int, denominator: one }.divide_by(&scale_factor).expect("scale_factor is never zero");
+        if self.is_negative() {
+            result.negate()
+        } else {
+            result
+        }
+    }
+
+    /// Returns the integer nearest to the non-negative rational `v`, breaking an exact tie
+    /// according to `mode`.
+    fn rounded_abs_int(&self, v: &Self, mode: RoundingMode) -> T {
+        let (floored_int, remainder) = v.numerator.divide_by_and_modulo(&v.denominator).expect("denominator is never zero");
+        if remainder.is_zero() {
+            return floored_int;
+        }
+        let one = self.denominator.pow(0).expect("pow(0) never fails");
+        let doubled_remainder = remainder.multiply(&self.get_two());
+        if doubled_remainder > v.denominator {
+            floored_int.plus(&one)
+        } else if doubled_remainder < v.denominator {
+            floored_int
+        } else if mode == RoundingMode::HalfEven && floored_int.modulo(&self.get_two()).expect("2 is never zero").is_zero() {
+            // discarded fraction is exactly 1/2: an exact tie
+            floored_int
+        } else {
+            floored_int.plus(&one)
+        }
     }
 
     pub fn to_ceil_decimal_string(&self, round_to: i32) -> String {

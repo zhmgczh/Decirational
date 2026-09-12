@@ -7,7 +7,7 @@ import java.util.function.IntFunction;
 
 public final class Main {
     private static final String USAGE = """
-            Usage: Main [--integer=decimal|tight] [--format=<format>] [--precision=N]
+            Usage: Main [--integer=decimal|tight] [--format=<format>] [--precision=N] [--rounding=<mode>]
 
               --integer=decimal   use DecimalInteger for large integers (default)
               --integer=tight     use TightInteger for large integers
@@ -25,11 +25,17 @@ public final class Main {
                                    ignored by default/fraction/decimal. N may be negative to round to tens,
                                    hundreds, etc. before the point.
 
+              --rounding=half-up    an exact tie rounds away from zero (default); only affects --format=round
+              --rounding=half-even  an exact tie rounds to the nearest even digit ("banker's rounding"), the
+                                    convention many accounting systems use to avoid biasing sums of rounded
+                                    values upward; only affects --format=round
+
             Reads one arithmetic expression per line from standard input and prints its value.""";
 
     public static void main(final String[] args) {
         String integer_type_name = "decimal";
         String format = "default";
+        String rounding = "half-up";
         int precision = 0;
         for (final String arg : args) {
             if (arg.equals("--help") || arg.equals("-h")) {
@@ -39,6 +45,8 @@ public final class Main {
                 integer_type_name = arg.substring("--integer=".length());
             } else if (arg.startsWith("--format=")) {
                 format = arg.substring("--format=".length());
+            } else if (arg.startsWith("--rounding=")) {
+                rounding = arg.substring("--rounding=".length());
             } else if (arg.startsWith("--precision=")) {
                 final String value = arg.substring("--precision=".length());
                 try {
@@ -57,9 +65,10 @@ public final class Main {
             }
         }
         try {
+            final RoundingMode rounding_mode = parseRoundingMode(rounding);
             switch (integer_type_name) {
-                case "decimal" -> run(DecimalInteger::new, DecimalInteger::new, format, precision);
-                case "tight" -> run(TightInteger::new, TightInteger::new, format, precision);
+                case "decimal" -> run(DecimalInteger::new, DecimalInteger::new, format, precision, rounding_mode);
+                case "tight" -> run(TightInteger::new, TightInteger::new, format, precision, rounding_mode);
                 default -> throw new IllegalArgumentException("unknown integer type: " + integer_type_name + " (expected 'decimal' or 'tight')");
             }
         } catch (final IllegalArgumentException e) {
@@ -69,8 +78,16 @@ public final class Main {
         }
     }
 
-    private static <T extends CustomInteger<T>> void run(final Function<String, T> from_string, final IntFunction<T> from_int, final String format, final int precision) {
-        final Function<Rational<T>, String> formatter = makeFormatter(format, precision);
+    private static RoundingMode parseRoundingMode(final String rounding) {
+        return switch (rounding) {
+            case "half-up" -> RoundingMode.HALF_UP;
+            case "half-even" -> RoundingMode.HALF_EVEN;
+            default -> throw new IllegalArgumentException("unknown rounding mode: " + rounding + " (expected half-up or half-even)");
+        };
+    }
+
+    private static <T extends CustomInteger<T>> void run(final Function<String, T> from_string, final IntFunction<T> from_int, final String format, final int precision, final RoundingMode rounding) {
+        final Function<Rational<T>, String> formatter = makeFormatter(format, precision, rounding);
         final Scanner input = new Scanner(System.in);
         final Lexer<T> lexer = new Lexer<>(from_string);
         final Parser<T> parser = new Parser<>(from_int);
@@ -89,14 +106,14 @@ public final class Main {
         }
     }
 
-    private static <T extends CustomInteger<T>> Function<Rational<T>, String> makeFormatter(final String format, final int precision) {
+    private static <T extends CustomInteger<T>> Function<Rational<T>, String> makeFormatter(final String format, final int precision, final RoundingMode rounding) {
         return switch (format) {
             case "default" -> Rational::toString;
             case "fraction" -> Rational::toFractionString;
             case "mixed" -> Rational::toMixedString;
             case "decimal" -> Rational::toDecimalString;
             case "truncate" -> r -> r.toTruncateDecimalString(precision);
-            case "round" -> r -> r.toRoundDecimalString(precision);
+            case "round" -> r -> r.toRoundDecimalStringMode(precision, rounding);
             case "ceil" -> r -> r.toCeilDecimalString(precision);
             case "floor" -> r -> r.toFloorDecimalString(precision);
             default -> throw new IllegalArgumentException("unknown format: " + format + " (expected default, fraction, mixed, decimal, truncate, round, ceil, or floor)");
