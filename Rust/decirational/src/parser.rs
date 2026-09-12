@@ -2,8 +2,7 @@ use crate::custom_integer::{CustomInteger, DError, DResult};
 use crate::rational::Rational;
 use crate::token::Token;
 
-/// A recursive-descent evaluator over a token stream, the Rust counterpart
-/// of Java's generic Parser<T>. It implements the same grammar:
+/// A recursive-descent evaluator over a token stream. Implements this grammar:
 ///
 /// ```text
 /// expression := term (('+'|'-') term)*

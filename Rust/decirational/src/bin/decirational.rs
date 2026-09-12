@@ -1,5 +1,5 @@
-//! The Rust counterpart of the Java Main entry point: a REPL that reads one
-//! arithmetic expression per line from standard input and prints its value.
+//! A REPL that reads one arithmetic expression per line from standard input
+//! and prints its value.
 
 use decirational::{CustomInteger, DResult, DecimalInteger, Lexer, Parser, Rational, TightInteger};
 use std::io::{self, BufRead, Write};

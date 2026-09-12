@@ -1,11 +1,12 @@
 use crate::arithmetic::{is_cyclic_begin, is_cyclic_end, is_decimal_point, is_digit, is_fraction_bar, is_minus, is_plus, CYCLIC_BEGIN, CYCLIC_END};
 use crate::custom_integer::{CustomInteger, DError, DResult};
 use crate::decimal_integer::strip_whitespace;
+use crate::ops_macros::{forward_binop, forward_checked_binop, forward_unop};
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 
-/// An exact fraction over a CustomInteger backend, the Rust counterpart of
-/// Java's generic Rational<T>.
+/// An exact fraction over a `CustomInteger` backend.
 #[derive(Debug, Clone)]
 pub struct Rational<T: CustomInteger> {
     numerator: T,
@@ -309,11 +310,28 @@ impl<T: CustomInteger> PartialOrd for Rational<T> {
     }
 }
 
+forward_binop!(Add, add, plus, Rational<T>, T: CustomInteger);
+forward_binop!(Sub, sub, minus, Rational<T>, T: CustomInteger);
+forward_binop!(Mul, mul, multiply, Rational<T>, T: CustomInteger);
+forward_checked_binop!(Div, div, divide_by, Rational<T>, T: CustomInteger);
+forward_unop!(Neg, neg, negate, Rational<T>, T: CustomInteger);
+
+/// Parses the same fraction/decimal/repeating-decimal literal syntax as
+/// [`parse_rational`], using `T`'s own `FromStr` as the digit-string
+/// constructor it needs. Requires `T::Err = DError` since `parse_rational`
+/// (like the rest of this crate) reports failures that way.
+impl<T: CustomInteger + FromStr<Err = DError>> FromStr for Rational<T> {
+    type Err = DError;
+    fn from_str(s: &str) -> DResult<Self> {
+        parse_rational(s, &|s| T::from_str(s))
+    }
+}
+
 /// Parses a fraction ("3/4"), decimal ("0.5"), or repeating-decimal
 /// ("0.{3}", "1.5{6}") literal into a reduced Rational<T>. `parse_int` builds
-/// a T from a plain (unsigned, digits-only) decimal string; Rust generics
-/// have no reflection-based "call T's string constructor" the way Java does,
-/// so the T constructor is supplied explicitly instead.
+/// a T from a plain (unsigned, digits-only) decimal string - supplied
+/// explicitly since a bare `T: CustomInteger` bound gives no way to require
+/// one (see the `FromStr` impl below for a version that doesn't need it).
 pub fn parse_rational<T: CustomInteger>(s: &str, parse_int: &dyn Fn(&str) -> DResult<T>) -> DResult<Rational<T>> {
     let s = strip_whitespace(s);
     if s.is_empty() {

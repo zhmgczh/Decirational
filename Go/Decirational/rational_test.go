@@ -221,11 +221,11 @@ func TestRationalTruncateRoundCeilFloor(t *testing.T) {
 	if got := rInt(0).ToFloorDecimalString(0); got != "0" {
 		t.Errorf("floor(0)=0: %s", got)
 	}
-	// KNOWN BUG (present in the Java original and preserved here): ceil() of a
-	// negative non-integer whose floor()-of-negation is exactly zero prints
-	// "-0" instead of "0", because ToCeilDecimalString prepends '-'
-	// unconditionally for negative inputs, even when the magnitude truncates
-	// to "0". Documented rather than silently asserted as correct.
+	// KNOWN BUG, preserved intentionally: ceil() of a negative non-integer
+	// whose floor()-of-negation is exactly zero prints "-0" instead of "0",
+	// because ToCeilDecimalString prepends '-' unconditionally for negative
+	// inputs, even when the magnitude truncates to "0". Documented rather
+	// than silently asserted as correct.
 	if got := r(t, -1, 3).ToCeilDecimalString(0); got != "-0" {
 		t.Errorf("BUG marker changed: ceil(-1/3) = %s, expected the known -0 bug", got)
 	}

@@ -1,3 +1,5 @@
+package decirational;
+
 public final class OperandTest {
     public static TestFramework run() {
         final TestFramework t = new TestFramework("Operand");

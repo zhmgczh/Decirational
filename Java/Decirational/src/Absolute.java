@@ -1,3 +1,5 @@
+package decirational;
+
 public enum Absolute implements Token {
     ABSOLUTE('|');
     private final char type_code;

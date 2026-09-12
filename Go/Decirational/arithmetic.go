@@ -1,18 +1,14 @@
 package decirational
 
-// This file is a faithful port of the Java Arithmetic class: schoolbook
-// add/subtract/multiply, binary-search long division, Euclidean gcd, and
-// base conversion between decimal digits and base-2^32 words.
+// Schoolbook add/subtract/multiply, binary-search long division, Euclidean
+// gcd, and base conversion between decimal digits and base-2^32 words.
 //
-// Two structural changes from the Java source (results are unchanged):
-//   - Java threads explicit (array, start, length) triples everywhere because
-//     Java arrays cannot be cheaply sub-viewed. Go slices ARE such a view, so
-//     every function here takes a slice directly; a Java call on the "whole
-//     array" is simply a call with the whole slice.
-//   - The base-2^32 "tight" digits use Go's native uint32/uint64 instead of
-//     Java's signed int/long plus "&0xffffffffL" masking, which Java needs
-//     only because it has no unsigned integer type. The arithmetic performed
-//     is identical.
+// Each algorithm is written once, generic over limb (byte | uint32), and
+// instantiated for both by the *Digits/*Words functions below - kept as the
+// stable entry points every call site elsewhere in the package uses. Go's
+// generics can't express "the base/max value for this type" as an
+// associated constant, so a small limbSpec value carries those two numbers
+// alongside the type parameter instead.
 
 const cyclicBegin = '{'
 const cyclicEnd = '}'
@@ -28,138 +24,159 @@ func isCyclicEndChar(c byte) bool   { return c == cyclicEnd }
 func charToDigit(c byte) byte { return c - '0' }
 func digitToChar(d byte) byte { return d + '0' }
 
-// ---- decimal digits (base 10, one decimal digit per byte, most significant first) ----
+// ---- the shared algorithm, generic over the limb type ----
 
-func precedingZerosDigits(digits []byte) int {
-	for i, d := range digits {
+// limb is a single element of a big-integer magnitude: a decimal digit
+// (byte, base 10) or a base-2^32 word (uint32, base 2^32).
+type limb interface {
+	byte | uint32
+}
+
+// limbSpec carries the base-specific constants (BASE and the largest valid
+// single-limb value, BASE-1) that isolate a limb type from the shared
+// algorithm below. All arithmetic widens through uint64 - comfortably large
+// enough for both: the largest possible uint32 product plus two uint32
+// addends still fits uint64 - so the same schoolbook algorithms work
+// unchanged for either limb type.
+type limbSpec[T limb] struct {
+	base uint64
+	max  T
+}
+
+var digitSpec = limbSpec[byte]{base: 10, max: 9}
+var wordSpec = limbSpec[uint32]{base: 1 << 32, max: ^uint32(0)}
+
+func precedingZeros[T limb](limbs []T) int {
+	for i, d := range limbs {
 		if d != 0 {
 			return i
 		}
 	}
-	return len(digits)
+	return len(limbs)
 }
 
-func isZeroDigits(digits []byte) bool {
-	return precedingZerosDigits(digits) == len(digits)
+func isZero[T limb](limbs []T) bool {
+	return precedingZeros(limbs) == len(limbs)
 }
 
-// optimizeDigits trims leading zero digits, always keeping at least one digit.
-// It returns the input slice unchanged (same backing array) when nothing needs trimming.
-func optimizeDigits(digits []byte) []byte {
-	cutLength := precedingZerosDigits(digits)
-	if cutLength > len(digits)-1 {
-		cutLength = len(digits) - 1
+// optimize trims leading zero limbs, always keeping at least one. It returns
+// the input slice unchanged (same backing array) when nothing needs trimming.
+func optimize[T limb](limbs []T) []T {
+	cutLength := precedingZeros(limbs)
+	if cutLength > len(limbs)-1 {
+		cutLength = len(limbs) - 1
 	}
 	if cutLength == 0 {
-		return digits
+		return limbs
 	}
-	result := make([]byte, len(digits)-cutLength)
-	copy(result, digits[cutLength:])
+	result := make([]T, len(limbs)-cutLength)
+	copy(result, limbs[cutLength:])
 	return result
 }
 
-// optimizeSignDigits forces the sign to non-negative when the magnitude is zero.
-func optimizeSignDigits(negative bool, digits []byte) bool {
-	if len(digits) == 1 && digits[0] == 0 {
+// optimizeSign forces the sign to non-negative when the magnitude is zero.
+func optimizeSign[T limb](negative bool, limbs []T) bool {
+	if len(limbs) == 1 && limbs[0] == 0 {
 		return false
 	}
 	return negative
 }
 
-// expandDigits left-pads digits with zeros to reach length. If length is not
-// larger than len(digits), digits is returned unchanged.
-func expandDigits(digits []byte, length int) []byte {
-	if length <= len(digits) {
-		return digits
+// expand left-pads limbs with zeros to reach length. If length is not larger
+// than len(limbs), limbs is returned unchanged.
+func expand[T limb](limbs []T, length int) []T {
+	if length <= len(limbs) {
+		return limbs
 	}
-	result := make([]byte, length)
-	copy(result[length-len(digits):], digits)
+	result := make([]T, length)
+	copy(result[length-len(limbs):], limbs)
 	return result
 }
 
-func passCarryDigit(digits []byte, sum byte, i int) byte {
-	carry := sum / 10
+func passCarry[T limb](spec limbSpec[T], limbs []T, sum uint64, i int) uint64 {
+	carry := sum / spec.base
 	if carry == 0 {
-		digits[i] = sum
+		limbs[i] = T(sum)
 	} else {
-		digits[i] = sum % 10
+		limbs[i] = T(sum % spec.base)
 	}
 	return carry
 }
 
-func addDigits(digits []byte, other []byte) {
-	diff := len(digits) - len(other)
-	var carry byte = 0
+func add[T limb](spec limbSpec[T], limbs []T, other []T) {
+	diff := len(limbs) - len(other)
+	var carry uint64 = 0
 	otherIndex := len(other) - 1
-	for i := len(digits) - 1; i >= diff; i-- {
-		sum := digits[i] + other[otherIndex] + carry
-		carry = passCarryDigit(digits, sum, i)
+	for i := len(limbs) - 1; i >= diff; i-- {
+		sum := uint64(limbs[i]) + uint64(other[otherIndex]) + carry
+		carry = passCarry(spec, limbs, sum, i)
 		otherIndex--
 	}
 	for i := diff - 1; i >= 0; i-- {
-		sum := digits[i] + carry
-		carry = passCarryDigit(digits, sum, i)
+		sum := uint64(limbs[i]) + carry
+		carry = passCarry(spec, limbs, sum, i)
 	}
 }
 
-func passBorrowDigit(digits []byte, difference int, i int) byte {
+func passBorrow[T limb](spec limbSpec[T], limbs []T, difference int64, i int) uint64 {
 	if difference < 0 {
-		digits[i] = byte(difference + 10)
+		limbs[i] = T(uint64(difference + int64(spec.base)))
 		return 1
 	}
-	digits[i] = byte(difference)
+	limbs[i] = T(uint64(difference))
 	return 0
 }
 
-func subtractDigits(digits []byte, other []byte) {
-	diff := len(digits) - len(other)
-	var borrow byte = 0
+func subtract[T limb](spec limbSpec[T], limbs []T, other []T) {
+	diff := len(limbs) - len(other)
+	var borrow uint64 = 0
 	otherIndex := len(other) - 1
-	for i := len(digits) - 1; i >= diff; i-- {
-		d := int(digits[i]) - int(other[otherIndex]) - int(borrow)
-		borrow = passBorrowDigit(digits, d, i)
+	for i := len(limbs) - 1; i >= diff; i-- {
+		d := int64(limbs[i]) - int64(other[otherIndex]) - int64(borrow)
+		borrow = passBorrow(spec, limbs, d, i)
 		otherIndex--
 	}
 	for i := diff - 1; i >= 0; i-- {
-		d := int(digits[i]) - int(borrow)
-		borrow = passBorrowDigit(digits, d, i)
+		d := int64(limbs[i]) - int64(borrow)
+		borrow = passBorrow(spec, limbs, d, i)
 	}
 }
 
-// multiplyDigits sets digits (assumed pre-zeroed, len(a)+len(b) long) to a*b.
-func multiplyDigits(digits []byte, a []byte, b []byte) {
+// multiply sets limbs (assumed pre-zeroed, len(a)+len(b) long) to a*b.
+func multiply[T limb](spec limbSpec[T], limbs []T, a []T, b []T) {
 	for i := 1; i <= len(a); i++ {
-		var carry byte = 0
-		digitsIndex := len(digits) - i
-		aIndex := len(a) - i
+		var carry uint64 = 0
+		limbsIndex := len(limbs) - i
+		aValue := uint64(a[len(a)-i])
 		for bIndex := len(b) - 1; bIndex >= 0; bIndex-- {
-			sum := digits[digitsIndex] + a[aIndex]*b[bIndex] + carry
-			carry = passCarryDigit(digits, sum, digitsIndex)
-			digitsIndex--
+			sum := uint64(limbs[limbsIndex]) + aValue*uint64(b[bIndex]) + carry
+			carry = passCarry(spec, limbs, sum, limbsIndex)
+			limbsIndex--
 		}
 		if carry != 0 {
-			digits[digitsIndex] += carry
+			limbs[limbsIndex] += T(carry)
 		}
 	}
 }
 
-// multiplyDigitsScalar sets digits (assumed pre-zeroed, len(b)+1 long) to a*b for a single digit a.
-func multiplyDigitsScalar(digits []byte, a byte, b []byte) {
-	var carry byte = 0
-	digitsIndex := len(digits) - 1
+// multiplyScalar sets limbs (assumed pre-zeroed, len(b)+1 long) to a*b for a single limb a.
+func multiplyScalar[T limb](spec limbSpec[T], limbs []T, a T, b []T) {
+	var carry uint64 = 0
+	limbsIndex := len(limbs) - 1
+	aValue := uint64(a)
 	for bIndex := len(b) - 1; bIndex >= 0; bIndex-- {
-		sum := digits[digitsIndex] + a*b[bIndex] + carry
-		carry = passCarryDigit(digits, sum, digitsIndex)
-		digitsIndex--
+		sum := uint64(limbs[limbsIndex]) + aValue*uint64(b[bIndex]) + carry
+		carry = passCarry(spec, limbs, sum, limbsIndex)
+		limbsIndex--
 	}
 	if carry != 0 {
-		digits[digitsIndex] += carry
+		limbs[limbsIndex] += T(carry)
 	}
 }
 
-func compareDigits(a []byte, b []byte) int {
-	aStart := precedingZerosDigits(a)
-	bStart := precedingZerosDigits(b)
+func compare[T limb](a []T, b []T) int {
+	aStart := precedingZeros(a)
+	bStart := precedingZeros(b)
 	aLen := len(a) - aStart
 	bLen := len(b) - bStart
 	if aLen > bLen {
@@ -178,9 +195,9 @@ func compareDigits(a []byte, b []byte) int {
 	return 0
 }
 
-// findRightBoundaryDigits returns, relative to the start of dividend, the last
+// findRightBoundary returns, relative to the start of dividend, the last
 // index of the shortest leading window of dividend that is >= divisor.
-func findRightBoundaryDigits(dividend []byte, divisor []byte) int {
+func findRightBoundary[T limb](dividend []T, divisor []T) int {
 	bound := len(divisor) - 1
 	for i := 0; i < len(divisor); i++ {
 		if i >= len(dividend) {
@@ -195,17 +212,17 @@ func findRightBoundaryDigits(dividend []byte, divisor []byte) int {
 	return bound
 }
 
-// multiplierDigits finds, via binary search, the largest single digit d such
-// that d*divisor <= dividend, leaving that product in temp (len(divisor)+1 long).
-func multiplierDigits(temp []byte, dividend []byte, divisor []byte) byte {
-	var left, right byte = 0, 9
+// multiplier finds, via binary search, the largest single limb d such that
+// d*divisor <= dividend, leaving that product in temp (len(divisor)+1 long).
+func multiplier[T limb](spec limbSpec[T], temp []T, dividend []T, divisor []T) T {
+	var left, right uint64 = 0, uint64(spec.max)
 	mid := (left + right + 1) >> 1
 outer:
 	for left < right {
 		mid = (left + right + 1) >> 1
 		clear(temp)
-		multiplyDigitsScalar(temp, mid, divisor)
-		switch compareDigits(temp, dividend) {
+		multiplyScalar(spec, temp, T(mid), divisor)
+		switch compare(temp, dividend) {
 		case 0:
 			left = mid
 			break outer
@@ -217,95 +234,95 @@ outer:
 	}
 	if mid != left {
 		clear(temp)
-		multiplyDigitsScalar(temp, left, divisor)
+		multiplyScalar(spec, temp, T(left), divisor)
 	}
-	return left
+	return T(left)
 }
 
-// alignedTempDigits drops temp's leading digit when it is zero, so its length
-// matches whichever dividend window multiplierDigits was solving for.
-func alignedTempDigits(temp []byte) []byte {
+// alignedTemp drops temp's leading limb when it is zero, so its length
+// matches whichever dividend window multiplier was solving for.
+func alignedTemp[T limb](temp []T) []T {
 	if temp[0] == 0 {
 		return temp[1:]
 	}
 	return temp
 }
 
-func divideDigits(quotient []byte, dividend []byte, divisor []byte) {
-	divisorSig := divisor[precedingZerosDigits(divisor):]
+func divide[T limb](spec limbSpec[T], quotient []T, dividend []T, divisor []T) {
+	divisorSig := divisor[precedingZeros(divisor):]
 	if len(divisorSig) == 0 {
 		panic("divide by 0")
 	}
-	temp := make([]byte, len(divisorSig)+1)
-	remaining := make([]byte, len(dividend))
+	temp := make([]T, len(divisorSig)+1)
+	remaining := make([]T, len(dividend))
 	copy(remaining, dividend)
 	diff := len(quotient) - len(remaining)
-	left := precedingZerosDigits(remaining)
-	right := left + findRightBoundaryDigits(remaining[left:], divisorSig)
+	left := precedingZeros(remaining)
+	right := left + findRightBoundary(remaining[left:], divisorSig)
 	for right < len(remaining) {
 		window := remaining[left : right+1]
-		quotient[diff+right] = multiplierDigits(temp, window, divisorSig)
-		subtractDigits(window, alignedTempDigits(temp))
-		left += precedingZerosDigits(remaining[left:])
-		right = left + findRightBoundaryDigits(remaining[left:], divisorSig)
+		quotient[diff+right] = multiplier(spec, temp, window, divisorSig)
+		subtract(spec, window, alignedTemp(temp))
+		left += precedingZeros(remaining[left:])
+		right = left + findRightBoundary(remaining[left:], divisorSig)
 	}
 }
 
-func moduloDigits(remainder []byte, dividend []byte, divisor []byte) {
-	divisorSig := divisor[precedingZerosDigits(divisor):]
+func modulo[T limb](spec limbSpec[T], remainder []T, dividend []T, divisor []T) {
+	divisorSig := divisor[precedingZeros(divisor):]
 	if len(divisorSig) == 0 {
 		panic("divide by 0")
 	}
-	temp := make([]byte, len(divisorSig)+1)
-	remaining := make([]byte, len(dividend))
+	temp := make([]T, len(divisorSig)+1)
+	remaining := make([]T, len(dividend))
 	copy(remaining, dividend)
-	left := precedingZerosDigits(remaining)
-	right := left + findRightBoundaryDigits(remaining[left:], divisorSig)
+	left := precedingZeros(remaining)
+	right := left + findRightBoundary(remaining[left:], divisorSig)
 	for right < len(remaining) {
 		window := remaining[left : right+1]
-		multiplierDigits(temp, window, divisorSig)
-		subtractDigits(window, alignedTempDigits(temp))
-		left += precedingZerosDigits(remaining[left:])
-		right = left + findRightBoundaryDigits(remaining[left:], divisorSig)
+		multiplier(spec, temp, window, divisorSig)
+		subtract(spec, window, alignedTemp(temp))
+		left += precedingZeros(remaining[left:])
+		right = left + findRightBoundary(remaining[left:], divisorSig)
 	}
-	start := precedingZerosDigits(remaining)
+	start := precedingZeros(remaining)
 	validLength := len(remaining) - start
 	copy(remainder[len(remainder)-validLength:], remaining[start:])
 }
 
-func divideAndModuloDigits(quotient []byte, remainder []byte, dividend []byte, divisor []byte) {
-	divisorSig := divisor[precedingZerosDigits(divisor):]
+func divideAndModulo[T limb](spec limbSpec[T], quotient []T, remainder []T, dividend []T, divisor []T) {
+	divisorSig := divisor[precedingZeros(divisor):]
 	if len(divisorSig) == 0 {
 		panic("divide by 0")
 	}
-	temp := make([]byte, len(divisorSig)+1)
-	remaining := make([]byte, len(dividend))
+	temp := make([]T, len(divisorSig)+1)
+	remaining := make([]T, len(dividend))
 	copy(remaining, dividend)
 	diff := len(quotient) - len(remaining)
-	left := precedingZerosDigits(remaining)
-	right := left + findRightBoundaryDigits(remaining[left:], divisorSig)
+	left := precedingZeros(remaining)
+	right := left + findRightBoundary(remaining[left:], divisorSig)
 	for right < len(remaining) {
 		window := remaining[left : right+1]
-		quotient[diff+right] = multiplierDigits(temp, window, divisorSig)
-		subtractDigits(window, alignedTempDigits(temp))
-		left += precedingZerosDigits(remaining[left:])
-		right = left + findRightBoundaryDigits(remaining[left:], divisorSig)
+		quotient[diff+right] = multiplier(spec, temp, window, divisorSig)
+		subtract(spec, window, alignedTemp(temp))
+		left += precedingZeros(remaining[left:])
+		right = left + findRightBoundary(remaining[left:], divisorSig)
 	}
-	start := precedingZerosDigits(remaining)
+	start := precedingZeros(remaining)
 	validLength := len(remaining) - start
 	copy(remainder[len(remainder)-validLength:], remaining[start:])
 }
 
-func gcdDigits(result []byte, a []byte, b []byte) {
-	cmp := compareDigits(a, b)
+func gcd[T limb](spec limbSpec[T], result []T, a []T, b []T) {
+	cmp := compare(a, b)
 	if cmp == 0 {
 		target := min(len(result), min(len(a), len(b)))
 		copy(result[len(result)-target:], a[len(a)-target:])
 		return
 	}
 	maxLength := max(len(a), len(b))
-	larger := make([]byte, maxLength)
-	smaller := make([]byte, maxLength)
+	larger := make([]T, maxLength)
+	smaller := make([]T, maxLength)
 	if cmp > 0 {
 		copy(larger[maxLength-len(a):], a)
 		copy(smaller[maxLength-len(b):], b)
@@ -313,65 +330,58 @@ func gcdDigits(result []byte, a []byte, b []byte) {
 		copy(larger[maxLength-len(b):], b)
 		copy(smaller[maxLength-len(a):], a)
 	}
-	temp := make([]byte, maxLength)
-	largerLeft := precedingZerosDigits(larger)
-	smallerLeft := precedingZerosDigits(smaller)
-	for !isZeroDigits(smaller[smallerLeft:]) {
+	temp := make([]T, maxLength)
+	largerLeft := precedingZeros(larger)
+	smallerLeft := precedingZeros(smaller)
+	for !isZero(smaller[smallerLeft:]) {
 		clear(temp[smallerLeft:])
-		moduloDigits(temp[smallerLeft:], larger[largerLeft:], smaller[smallerLeft:])
+		modulo(spec, temp[smallerLeft:], larger[largerLeft:], smaller[smallerLeft:])
 		oldSmallerLeft := smallerLeft
 		larger, largerLeft, smaller, temp = smaller, smallerLeft, temp, larger
-		smallerLeft = oldSmallerLeft + precedingZerosDigits(smaller[oldSmallerLeft:])
+		smallerLeft = oldSmallerLeft + precedingZeros(smaller[oldSmallerLeft:])
 	}
 	copy(result[len(result)-(len(larger)-largerLeft):], larger[largerLeft:])
 }
 
+// ---- decimal digits (base 10, one decimal digit per byte, most significant first) ----
+
+func precedingZerosDigits(digits []byte) int               { return precedingZeros(digits) }
+func isZeroDigits(digits []byte) bool                      { return isZero(digits) }
+func optimizeDigits(digits []byte) []byte                  { return optimize(digits) }
+func optimizeSignDigits(negative bool, digits []byte) bool { return optimizeSign(negative, digits) }
+func expandDigits(digits []byte, length int) []byte        { return expand(digits, length) }
+func addDigits(digits []byte, other []byte)                { add(digitSpec, digits, other) }
+func subtractDigits(digits []byte, other []byte)           { subtract(digitSpec, digits, other) }
+func multiplyDigits(digits []byte, a []byte, b []byte)     { multiply(digitSpec, digits, a, b) }
+func multiplyDigitsScalar(digits []byte, a byte, b []byte) { multiplyScalar(digitSpec, digits, a, b) }
+func compareDigits(a []byte, b []byte) int                 { return compare(a, b) }
+func findRightBoundaryDigits(dividend []byte, divisor []byte) int {
+	return findRightBoundary(dividend, divisor)
+}
+func multiplierDigits(temp []byte, dividend []byte, divisor []byte) byte {
+	return multiplier(digitSpec, temp, dividend, divisor)
+}
+func divideDigits(quotient []byte, dividend []byte, divisor []byte) {
+	divide(digitSpec, quotient, dividend, divisor)
+}
+func moduloDigits(remainder []byte, dividend []byte, divisor []byte) {
+	modulo(digitSpec, remainder, dividend, divisor)
+}
+func divideAndModuloDigits(quotient []byte, remainder []byte, dividend []byte, divisor []byte) {
+	divideAndModulo(digitSpec, quotient, remainder, dividend, divisor)
+}
+func gcdDigits(result []byte, a []byte, b []byte) { gcd(digitSpec, result, a, b) }
+
 // ---- tight words (base 2^32, one word per uint32, most significant first) ----
 
-func precedingZerosWords(words []uint32) int {
-	for i, w := range words {
-		if w != 0 {
-			return i
-		}
-	}
-	return len(words)
-}
+func precedingZerosWords(words []uint32) int               { return precedingZeros(words) }
+func isZeroWords(words []uint32) bool                      { return isZero(words) }
+func optimizeWords(words []uint32) []uint32                { return optimize(words) }
+func optimizeSignWords(negative bool, words []uint32) bool { return optimizeSign(negative, words) }
+func expandWords(words []uint32, length int) []uint32      { return expand(words, length) }
 
-func isZeroWords(words []uint32) bool {
-	return precedingZerosWords(words) == len(words)
-}
-
-func optimizeWords(words []uint32) []uint32 {
-	cutLength := precedingZerosWords(words)
-	if cutLength > len(words)-1 {
-		cutLength = len(words) - 1
-	}
-	if cutLength == 0 {
-		return words
-	}
-	result := make([]uint32, len(words)-cutLength)
-	copy(result, words[cutLength:])
-	return result
-}
-
-func optimizeSignWords(negative bool, words []uint32) bool {
-	if len(words) == 1 && words[0] == 0 {
-		return false
-	}
-	return negative
-}
-
-func expandWords(words []uint32, length int) []uint32 {
-	if length <= len(words) {
-		return words
-	}
-	result := make([]uint32, length)
-	copy(result[length-len(words):], words)
-	return result
-}
-
-// reverseAbs64 mirrors Java's Arithmetic.reverse_negative(long): the absolute
-// value of a widened 64-bit number, used so that math.MinInt32 doesn't overflow.
+// reverseAbs64 is the absolute value of a widened 64-bit number, used so
+// that math.MinInt32 doesn't overflow.
 func reverseAbs64(number int64) int64 {
 	if number < 0 {
 		return -number
@@ -379,241 +389,29 @@ func reverseAbs64(number int64) int64 {
 	return number
 }
 
-func passCarryWord(words []uint32, sum uint64, i int) uint32 {
-	carry := uint32(sum >> 32)
-	words[i] = uint32(sum & 0xffffffff)
-	return carry
-}
-
-func addWords(words []uint32, other []uint32) {
-	diff := len(words) - len(other)
-	var carry uint32 = 0
-	otherIndex := len(other) - 1
-	for i := len(words) - 1; i >= diff; i-- {
-		sum := uint64(words[i]) + uint64(other[otherIndex]) + uint64(carry)
-		carry = passCarryWord(words, sum, i)
-		otherIndex--
-	}
-	for i := diff - 1; i >= 0; i-- {
-		sum := uint64(words[i]) + uint64(carry)
-		carry = passCarryWord(words, sum, i)
-	}
-}
-
-func passBorrowWord(words []uint32, difference int64, i int) uint32 {
-	words[i] = uint32(difference)
-	if difference < 0 {
-		return 1
-	}
-	return 0
-}
-
-func subtractWords(words []uint32, other []uint32) {
-	diff := len(words) - len(other)
-	var borrow uint32 = 0
-	otherIndex := len(other) - 1
-	for i := len(words) - 1; i >= diff; i-- {
-		d := int64(words[i]) - int64(other[otherIndex]) - int64(borrow)
-		borrow = passBorrowWord(words, d, i)
-		otherIndex--
-	}
-	for i := diff - 1; i >= 0; i-- {
-		d := int64(words[i]) - int64(borrow)
-		borrow = passBorrowWord(words, d, i)
-	}
-}
-
-func multiplyWords(words []uint32, a []uint32, b []uint32) {
-	for i := 1; i <= len(a); i++ {
-		var carry uint32 = 0
-		wordsIndex := len(words) - i
-		aIndex := len(a) - i
-		for bIndex := len(b) - 1; bIndex >= 0; bIndex-- {
-			sum := uint64(words[wordsIndex]) + uint64(a[aIndex])*uint64(b[bIndex]) + uint64(carry)
-			carry = passCarryWord(words, sum, wordsIndex)
-			wordsIndex--
-		}
-		if carry != 0 {
-			words[wordsIndex] += carry
-		}
-	}
-}
-
+func addWords(words []uint32, other []uint32)              { add(wordSpec, words, other) }
+func subtractWords(words []uint32, other []uint32)         { subtract(wordSpec, words, other) }
+func multiplyWords(words []uint32, a []uint32, b []uint32) { multiply(wordSpec, words, a, b) }
 func multiplyWordsScalar(words []uint32, a uint32, b []uint32) {
-	var carry uint32 = 0
-	wordsIndex := len(words) - 1
-	for bIndex := len(b) - 1; bIndex >= 0; bIndex-- {
-		sum := uint64(words[wordsIndex]) + uint64(a)*uint64(b[bIndex]) + uint64(carry)
-		carry = passCarryWord(words, sum, wordsIndex)
-		wordsIndex--
-	}
-	if carry != 0 {
-		words[wordsIndex] += carry
-	}
+	multiplyScalar(wordSpec, words, a, b)
 }
-
-func compareWords(a []uint32, b []uint32) int {
-	aStart := precedingZerosWords(a)
-	bStart := precedingZerosWords(b)
-	aLen := len(a) - aStart
-	bLen := len(b) - bStart
-	if aLen > bLen {
-		return 1
-	} else if aLen < bLen {
-		return -1
-	}
-	for i := 0; i < aLen; i++ {
-		av, bv := a[aStart+i], b[bStart+i]
-		if av > bv {
-			return 1
-		} else if av < bv {
-			return -1
-		}
-	}
-	return 0
-}
-
+func compareWords(a []uint32, b []uint32) int { return compare(a, b) }
 func findRightBoundaryWords(dividend []uint32, divisor []uint32) int {
-	bound := len(divisor) - 1
-	for i := 0; i < len(divisor); i++ {
-		if i >= len(dividend) {
-			return bound + 1
-		}
-		if dividend[i] > divisor[i] {
-			return bound
-		} else if dividend[i] < divisor[i] {
-			return bound + 1
-		}
-	}
-	return bound
+	return findRightBoundary(dividend, divisor)
 }
-
 func multiplierWords(temp []uint32, dividend []uint32, divisor []uint32) uint32 {
-	var left, right uint32 = 0, 0xffffffff
-	mid := uint32((uint64(left) + uint64(right) + 1) >> 1)
-outer:
-	for left < right {
-		mid = uint32((uint64(left) + uint64(right) + 1) >> 1)
-		clear(temp)
-		multiplyWordsScalar(temp, mid, divisor)
-		switch compareWords(temp, dividend) {
-		case 0:
-			left = mid
-			break outer
-		case -1:
-			left = mid
-		case 1:
-			right = mid - 1
-		}
-	}
-	if mid != left {
-		clear(temp)
-		multiplyWordsScalar(temp, left, divisor)
-	}
-	return left
+	return multiplier(wordSpec, temp, dividend, divisor)
 }
-
-func alignedTempWords(temp []uint32) []uint32 {
-	if temp[0] == 0 {
-		return temp[1:]
-	}
-	return temp
-}
-
 func divideWords(quotient []uint32, dividend []uint32, divisor []uint32) {
-	divisorSig := divisor[precedingZerosWords(divisor):]
-	if len(divisorSig) == 0 {
-		panic("divide by 0")
-	}
-	temp := make([]uint32, len(divisorSig)+1)
-	remaining := make([]uint32, len(dividend))
-	copy(remaining, dividend)
-	diff := len(quotient) - len(remaining)
-	left := precedingZerosWords(remaining)
-	right := left + findRightBoundaryWords(remaining[left:], divisorSig)
-	for right < len(remaining) {
-		window := remaining[left : right+1]
-		quotient[diff+right] = multiplierWords(temp, window, divisorSig)
-		subtractWords(window, alignedTempWords(temp))
-		left += precedingZerosWords(remaining[left:])
-		right = left + findRightBoundaryWords(remaining[left:], divisorSig)
-	}
+	divide(wordSpec, quotient, dividend, divisor)
 }
-
 func moduloWords(remainder []uint32, dividend []uint32, divisor []uint32) {
-	divisorSig := divisor[precedingZerosWords(divisor):]
-	if len(divisorSig) == 0 {
-		panic("divide by 0")
-	}
-	temp := make([]uint32, len(divisorSig)+1)
-	remaining := make([]uint32, len(dividend))
-	copy(remaining, dividend)
-	left := precedingZerosWords(remaining)
-	right := left + findRightBoundaryWords(remaining[left:], divisorSig)
-	for right < len(remaining) {
-		window := remaining[left : right+1]
-		multiplierWords(temp, window, divisorSig)
-		subtractWords(window, alignedTempWords(temp))
-		left += precedingZerosWords(remaining[left:])
-		right = left + findRightBoundaryWords(remaining[left:], divisorSig)
-	}
-	start := precedingZerosWords(remaining)
-	validLength := len(remaining) - start
-	copy(remainder[len(remainder)-validLength:], remaining[start:])
+	modulo(wordSpec, remainder, dividend, divisor)
 }
-
 func divideAndModuloWords(quotient []uint32, remainder []uint32, dividend []uint32, divisor []uint32) {
-	divisorSig := divisor[precedingZerosWords(divisor):]
-	if len(divisorSig) == 0 {
-		panic("divide by 0")
-	}
-	temp := make([]uint32, len(divisorSig)+1)
-	remaining := make([]uint32, len(dividend))
-	copy(remaining, dividend)
-	diff := len(quotient) - len(remaining)
-	left := precedingZerosWords(remaining)
-	right := left + findRightBoundaryWords(remaining[left:], divisorSig)
-	for right < len(remaining) {
-		window := remaining[left : right+1]
-		quotient[diff+right] = multiplierWords(temp, window, divisorSig)
-		subtractWords(window, alignedTempWords(temp))
-		left += precedingZerosWords(remaining[left:])
-		right = left + findRightBoundaryWords(remaining[left:], divisorSig)
-	}
-	start := precedingZerosWords(remaining)
-	validLength := len(remaining) - start
-	copy(remainder[len(remainder)-validLength:], remaining[start:])
+	divideAndModulo(wordSpec, quotient, remainder, dividend, divisor)
 }
-
-func gcdWords(result []uint32, a []uint32, b []uint32) {
-	cmp := compareWords(a, b)
-	if cmp == 0 {
-		target := min(len(result), min(len(a), len(b)))
-		copy(result[len(result)-target:], a[len(a)-target:])
-		return
-	}
-	maxLength := max(len(a), len(b))
-	larger := make([]uint32, maxLength)
-	smaller := make([]uint32, maxLength)
-	if cmp > 0 {
-		copy(larger[maxLength-len(a):], a)
-		copy(smaller[maxLength-len(b):], b)
-	} else {
-		copy(larger[maxLength-len(b):], b)
-		copy(smaller[maxLength-len(a):], a)
-	}
-	temp := make([]uint32, maxLength)
-	largerLeft := precedingZerosWords(larger)
-	smallerLeft := precedingZerosWords(smaller)
-	for !isZeroWords(smaller[smallerLeft:]) {
-		clear(temp[smallerLeft:])
-		moduloWords(temp[smallerLeft:], larger[largerLeft:], smaller[smallerLeft:])
-		oldSmallerLeft := smallerLeft
-		larger, largerLeft, smaller, temp = smaller, smallerLeft, temp, larger
-		smallerLeft = oldSmallerLeft + precedingZerosWords(smaller[oldSmallerLeft:])
-	}
-	copy(result[len(result)-(len(larger)-largerLeft):], larger[largerLeft:])
-}
+func gcdWords(result []uint32, a []uint32, b []uint32) { gcd(wordSpec, result, a, b) }
 
 // ---- base conversion between decimal digits and base-2^32 words ----
 

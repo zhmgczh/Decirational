@@ -186,7 +186,7 @@ fn decimal_integer_division_identity() {
 
 #[test]
 fn decimal_integer_gcd_lcm() {
-    let cases = [("48", "18", "6"), ("17", "5", "1"), ("100", "75", "25"), ("0", "5", "5"), ("5", "0", "5"), ("-12", "18", "6")];
+    let cases = [("48", "18", "6"), ("17", "5", "1"), ("100", "75", "25"), ("0", "5", "5"), ("5", "0", "5"), ("-12", "18", "6"), ("0", "-5", "5"), ("-5", "0", "5")];
     for (a, b, want) in cases {
         assert_eq!(d(a).gcd(&d(b)).to_string(), want, "gcd({},{})", a, b);
     }
@@ -201,6 +201,27 @@ fn decimal_integer_pow() {
         assert_eq!(d(base).pow(exp).unwrap().to_string(), want, "{}^{}", base, exp);
     }
     assert!(d("2").pow(-1).is_err());
+}
+
+#[test]
+fn decimal_integer_operators_and_fromstr() {
+    use std::str::FromStr;
+    let a = d("17");
+    let b = d("5");
+    assert_eq!((a.clone() + b.clone()).to_string(), "22", "T + T");
+    assert_eq!((a.clone() + &b).to_string(), "22", "T + &T");
+    assert_eq!((&a + b.clone()).to_string(), "22", "&T + T");
+    assert_eq!((&a + &b).to_string(), "22", "&T + &T");
+    assert_eq!((&a - &b).to_string(), "12", "&T - &T");
+    assert_eq!((&a * &b).to_string(), "85", "&T * &T");
+    assert_eq!((&a / &b).to_string(), "3", "&T / &T truncates toward zero");
+    assert_eq!((&a % &b).to_string(), "2", "&T % &T");
+    assert_eq!((-a.clone()).to_string(), "-17", "-T");
+    assert_eq!((-&a).to_string(), "-17", "-&T");
+    assert_panics("division by zero via /", || { let _ = &a / &DecimalInteger::from_i64(0); });
+    assert_panics("modulo by zero via %", || { let _ = &a % &DecimalInteger::from_i64(0); });
+    assert_eq!(DecimalInteger::from_str("42").unwrap(), d("42"), "FromStr matches parse");
+    assert!(DecimalInteger::from_str("not a number").is_err());
 }
 
 // ===================== TightInteger =====================
@@ -283,10 +304,29 @@ fn tight_integer_division_identity() {
 #[test]
 fn tight_integer_gcd_pow() {
     assert_eq!(t("48").gcd(&t("18")).to_string(), "6");
+    assert_eq!(t("0").gcd(&t("-5")).to_string(), "5");
+    assert_eq!(t("-5").gcd(&t("0")).to_string(), "5");
     assert_eq!(t("21").lcm(&t("6")).unwrap().to_string(), "42");
     assert_eq!(t("2").pow(10).unwrap().to_string(), "1024");
     assert_eq!(t("5").pow(0).unwrap().to_string(), "1");
     assert!(t("2").pow(-1).is_err());
+}
+
+#[test]
+fn tight_integer_operators_and_fromstr() {
+    use std::str::FromStr;
+    let a = t("17");
+    let b = t("5");
+    assert_eq!((a.clone() + b.clone()).to_string(), "22", "T + T");
+    assert_eq!((&a + &b).to_string(), "22", "&T + &T");
+    assert_eq!((&a - &b).to_string(), "12", "&T - &T");
+    assert_eq!((&a * &b).to_string(), "85", "&T * &T");
+    assert_eq!((&a / &b).to_string(), "3", "&T / &T truncates toward zero");
+    assert_eq!((&a % &b).to_string(), "2", "&T % &T");
+    assert_eq!((-a.clone()).to_string(), "-17", "-T");
+    assert_panics("division by zero via /", || { let _ = &a / &TightInteger::from_i64(0); });
+    assert_eq!(TightInteger::from_str("42").unwrap(), t("42"), "FromStr matches parse");
+    assert!(TightInteger::from_str("not a number").is_err());
 }
 
 fn verify_tight_round_trip(value: &str) {
@@ -383,6 +423,25 @@ fn rational_arithmetic() {
 }
 
 #[test]
+fn rational_operators_and_fromstr() {
+    use std::str::FromStr;
+    let a = r(1, 2);
+    let b = r(1, 3);
+    assert_eq!((a.clone() + b.clone()).to_string(), "5/6", "T + T");
+    assert_eq!((&a + &b).to_string(), "5/6", "&T + &T");
+    assert_eq!((&a - &b).to_string(), "1/6", "&T - &T");
+    assert_eq!((&a * &b).to_string(), "1/6", "&T * &T");
+    assert_eq!((&a / &b).to_string(), "3/2", "&T / &T");
+    assert_eq!((-a.clone()).to_string(), "-1/2", "-T");
+    assert_panics("division by zero via /", || { let _ = &a / &r(0, 5); });
+    let parsed: Rational<DecimalInteger> = Rational::from_str("1/3").unwrap();
+    assert_eq!(parsed, r(1, 3), "FromStr matches parse_rational");
+    let parsed_decimal: Rational<DecimalInteger> = "0.5".parse().unwrap();
+    assert_eq!(parsed_decimal.to_string(), "1/2", "FromStr parses decimal literals too");
+    assert!(Rational::<DecimalInteger>::from_str("not a rational").is_err());
+}
+
+#[test]
 fn rational_pow() {
     assert_eq!(r_int(2).pow(-3).unwrap().to_string(), "1/8");
     assert_eq!(r_int(2).pow(3).unwrap().to_string(), "8");
@@ -431,10 +490,10 @@ fn rational_truncate_round_ceil_floor() {
     assert_eq!(r(-5, 2).to_floor_decimal_string(0), "-3");
     assert_eq!(r_int(0).to_ceil_decimal_string(0), "0");
     assert_eq!(r_int(0).to_floor_decimal_string(0), "0");
-    // KNOWN BUG (present in the Java original, preserved here): ceil() of a
-    // negative non-integer whose floor()-of-negation is exactly zero prints
-    // "-0" instead of "0". Documented rather than silently treated as correct.
-    assert_eq!(r(-1, 3).to_ceil_decimal_string(0), "-0", "known -0 bug carried over from Java");
+    // KNOWN BUG, preserved intentionally: ceil() of a negative non-integer
+    // whose floor()-of-negation is exactly zero prints "-0" instead of "0".
+    // Documented rather than silently treated as correct.
+    assert_eq!(r(-1, 3).to_ceil_decimal_string(0), "-0", "known -0 bug");
 }
 
 #[test]
@@ -698,14 +757,11 @@ fn rational_round_to_min_int_panics() {
     // since it has no positive counterpart to negate `round_to` into - "the
     // minimum representable precision" isn't representable, so it is
     // rejected outright rather than producing some arbitrary result. This is
-    // the one place the Rust port panics rather than returning Result,
-    // mirroring Java's unchecked IllegalArgumentException - it is a
+    // the one place this type panics rather than returning Result: it's a
     // caller-contract violation (an absurd precision argument), not a
     // data-dependent failure the REPL needs to recover from mid-expression.
-    //
     // All three round_to-taking formatters panic for i32::MIN regardless of
-    // the number's magnitude, matching Java and Go, each of which checks
-    // this up front the same way.
+    // the number's magnitude.
     assert_panics("truncate at i32::MIN panics", || {
         let _ = r_int(5).to_truncate_decimal_string(i32::MIN);
     });

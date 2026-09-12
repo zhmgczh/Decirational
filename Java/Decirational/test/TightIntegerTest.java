@@ -1,3 +1,5 @@
+package decirational;
+
 public final class TightIntegerTest {
     private static void verify_division_identity(final TestFramework t, final String a_str, final String b_str) {
         final TightInteger a = new TightInteger(a_str);
@@ -101,6 +103,8 @@ public final class TightIntegerTest {
 
         // gcd / lcm
         t.check_equals("6", new TightInteger("48").gcd(new TightInteger("18")).toString(), "gcd(48,18)");
+        t.check_equals("5", new TightInteger("0").gcd(new TightInteger("-5")).toString(), "gcd(0,-x)=x");
+        t.check_equals("5", new TightInteger("-5").gcd(new TightInteger("0")).toString(), "gcd(-x,0)=x");
         t.check_equals("42", new TightInteger("21").lcm(new TightInteger("6")).toString(), "lcm(21,6)");
 
         // pow

@@ -1,6 +1,7 @@
+package decirational;
+
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Scanner;
 
 public final class TightInteger implements CustomInteger<TightInteger> {
     private final boolean negative;
@@ -330,10 +331,10 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     @Override
     public TightInteger gcd(final TightInteger other) {
         if (is_zero()) {
-            return other;
+            return other.abs();
         }
         if (other.is_zero()) {
-            return this;
+            return abs();
         }
         if (is_unit_abs() || other.is_unit_abs()) {
             return ONE;
@@ -372,26 +373,5 @@ public final class TightInteger implements CustomInteger<TightInteger> {
             }
         }
         return result;
-    }
-
-    public static void main(final String[] args) {
-        final Scanner input = new Scanner(System.in);
-        while (input.hasNextLine()) {
-            final String a_str = input.nextLine().trim();
-            final String b_str = input.nextLine().trim();
-            final TightInteger a = new TightInteger(a_str);
-            final TightInteger b = new TightInteger(b_str);
-            System.out.println(a);
-            System.out.println(b);
-            System.out.println(a.compareTo(b));
-            System.out.println(a.plus(b));
-            System.out.println(a.minus(b));
-            System.out.println(a.multiply(b));
-            System.out.println(a.divide_by(b));
-            System.out.println(a.modulo(b));
-            System.out.println(a.gcd(b));
-            System.out.println(a.lcm(b));
-            System.out.println(a.pow(2));
-        }
     }
 }

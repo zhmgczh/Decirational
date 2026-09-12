@@ -1,3 +1,5 @@
+package decirational;
+
 public final class RationalTest {
     private static Rational<DecimalInteger> r(final int numerator, final int denominator) {
         return new Rational<>(new DecimalInteger(numerator), new DecimalInteger(denominator));

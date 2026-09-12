@@ -2,13 +2,12 @@ package decirational
 
 import "fmt"
 
-// Token is the Go counterpart of the Java Token interface: anything the
-// lexer can emit and the parser can match against.
+// Token is anything the lexer can emit and the parser can match against.
 type Token interface {
 	TypeCode() byte
 }
 
-// OperandType mirrors Java's OperandType enum.
+// OperandType is the kind of a numeric literal token.
 type OperandType byte
 
 const (
@@ -31,7 +30,7 @@ func (t OperandType) String() string {
 	}
 }
 
-// OperatorKind mirrors Java's Operator enum.
+// OperatorKind is a binary arithmetic operator.
 type OperatorKind byte
 
 const (
@@ -56,7 +55,7 @@ func (o OperatorKind) String() string {
 	return fmt.Sprintf("%c", byte(o))
 }
 
-// ParenKind mirrors Java's Parenthesis enum.
+// ParenKind is a parenthesis token.
 type ParenKind byte
 
 const (
@@ -67,7 +66,7 @@ const (
 func (p ParenKind) TypeCode() byte { return byte(p) }
 func (p ParenKind) String() string { return fmt.Sprintf("%c", byte(p)) }
 
-// FloorKind mirrors Java's Floor enum.
+// FloorKind is a floor-bracket token.
 type FloorKind byte
 
 const (
@@ -78,9 +77,9 @@ const (
 func (f FloorKind) TypeCode() byte { return byte(f) }
 func (f FloorKind) String() string { return fmt.Sprintf("%c", byte(f)) }
 
-// AbsoluteKind mirrors Java's Absolute enum. The same bar character opens and
-// closes an absolute-value group; which is which is resolved by the parser's
-// grammar position, exactly as in the Java version.
+// AbsoluteKind is the absolute-value bar token. The same bar character opens
+// and closes an absolute-value group; which is which is resolved by the
+// parser's grammar position.
 type AbsoluteKind byte
 
 const AbsoluteBar AbsoluteKind = '|'
@@ -88,12 +87,8 @@ const AbsoluteBar AbsoluteKind = '|'
 func (a AbsoluteKind) TypeCode() byte { return byte(a) }
 func (a AbsoluteKind) String() string { return fmt.Sprintf("%c", byte(a)) }
 
-// Operand is the Go counterpart of Java's Operand: a numeric literal token.
-// Java's Operand is non-generic (its constructor is generic and stashes the
-// parsed value as a raw Object); Go generics let Operand itself be generic
-// over T, avoiding that boxing while keeping the exact same value semantics -
-// a value is parsed as a plain machine integer when it fits, else as T, else
-// as Rational[T].
+// Operand is a numeric literal token: a value is parsed as a plain machine
+// integer when it fits, else as T, else as Rational[T].
 type Operand[T CustomInteger[T]] struct {
 	Type  OperandType
 	Large T           // populated when Type is OperandInteger or OperandLargeInteger

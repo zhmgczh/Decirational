@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-// Parser[T] is a recursive-descent evaluator over a token stream, the Go
-// counterpart of Java's generic Parser<T>. It implements the same grammar:
+// Parser[T] is a recursive-descent evaluator over a token stream. Implements
+// this grammar:
 //
 //	expression := term (('+'|'-') term)*
 //	term       := unary (('*'|'/'|'%') unary)*
@@ -205,9 +205,8 @@ func (p *Parser[T]) parsePower() (Rational[T], error) {
 }
 
 // toIntExponent parses the exponent as int32 specifically (not Go's native,
-// wider int) so that a value Java/Rust would reject as out of range - e.g.
-// an exponent that fits int64 but not int32 - is rejected here too, rather
-// than silently accepted and attempted (which previously hung/OOMed on an
+// wider int) so a value out of int32 range is rejected here rather than
+// silently accepted and attempted (which previously hung/OOMed on an
 // astronomically large computation for exactly such an input).
 func toIntExponent[T CustomInteger[T]](exponent Rational[T]) (int32, error) {
 	if !exponent.IsInteger() {

@@ -1,3 +1,5 @@
+package decirational;
+
 public final class TestFramework {
     private final String suite_name;
     private int total = 0;

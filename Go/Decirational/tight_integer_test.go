@@ -164,6 +164,12 @@ func TestTightIntegerGcdPow(t *testing.T) {
 	if got := mustT(t, "48").Gcd(mustT(t, "18")).String(); got != "6" {
 		t.Errorf("gcd(48,18) = %s", got)
 	}
+	if got := mustT(t, "0").Gcd(mustT(t, "-5")).String(); got != "5" {
+		t.Errorf("gcd(0,-5) = %s", got)
+	}
+	if got := mustT(t, "-5").Gcd(mustT(t, "0")).String(); got != "5" {
+		t.Errorf("gcd(-5,0) = %s", got)
+	}
 	if got := mustT(t, "21").Lcm(mustT(t, "6")).String(); got != "42" {
 		t.Errorf("lcm(21,6) = %s", got)
 	}

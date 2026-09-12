@@ -234,7 +234,7 @@ func TestDecimalIntegerDivisionIdentity(t *testing.T) {
 
 func TestDecimalIntegerGcdLcm(t *testing.T) {
 	cases := []struct{ a, b, want string }{
-		{"48", "18", "6"}, {"17", "5", "1"}, {"100", "75", "25"}, {"0", "5", "5"}, {"5", "0", "5"}, {"-12", "18", "6"},
+		{"48", "18", "6"}, {"17", "5", "1"}, {"100", "75", "25"}, {"0", "5", "5"}, {"5", "0", "5"}, {"-12", "18", "6"}, {"0", "-5", "5"}, {"-5", "0", "5"},
 	}
 	for _, c := range cases {
 		if got := mustD(t, c.a).Gcd(mustD(t, c.b)).String(); got != c.want {

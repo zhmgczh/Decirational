@@ -1,3 +1,5 @@
+package decirational;
+
 public enum Operator implements Token {
     PLUS('+'), MINUS('-'), MULTIPLICATION('*'), DIVISION('/'), INTEGER_DIVISION('÷'), MODULO('%'), POWER('^');
     private final char operator_code;

@@ -6,8 +6,7 @@ import (
 	"strings"
 )
 
-// Rational[T] is an exact fraction over a CustomInteger backend, the Go
-// counterpart of Java's generic Rational<T>.
+// Rational[T] is an exact fraction over a CustomInteger backend.
 type Rational[T CustomInteger[T]] struct {
 	numerator   T
 	denominator T
@@ -66,10 +65,9 @@ func NewRationalFromInteger[T CustomInteger[T]](integer T) Rational[T] {
 }
 
 // ParseRational parses a fraction ("3/4"), decimal ("0.5"), or repeating-decimal
-// ("0.{3}", "1.5{6}") literal into a reduced Rational[T]. parseInt is used to
-// build a T from a plain (unsigned, digits-only) decimal string; Go generics
-// have no reflection-based "call T's string constructor" the way Java does,
-// so the T constructor is supplied explicitly instead.
+// ("0.{3}", "1.5{6}") literal into a reduced Rational[T]. parseInt builds a T
+// from a plain (unsigned, digits-only) decimal string - supplied explicitly
+// since a bare CustomInteger[T] constraint gives no way to require one.
 func ParseRational[T CustomInteger[T]](s string, parseInt func(string) (T, error)) (Rational[T], error) {
 	s = stripWhitespace(s)
 	if s == "" {

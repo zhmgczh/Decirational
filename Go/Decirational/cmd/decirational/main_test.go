@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	dec "github.com/zhmgczh/Decirational"
+	dec "github.com/zhmgczh/Decirational/Go/Decirational"
 )
 
 // Regression test: bufio.Scanner's default Buffer caps a single line at
@@ -13,10 +13,9 @@ import (
 // stdin with such a Scanner and never checked Scanner.Err(), so a line
 // longer than that limit made Scan() return false exactly as if the input
 // had ended: the line produced no output and the process exited 0, with no
-// error printed anywhere. Java's Scanner/nextLine and Rust's
-// BufRead::lines have no such cap and evaluated the identical input
-// normally. run() now reads with bufio.Reader.ReadString, which grows its
-// buffer to fit whatever it reads instead of enforcing a fixed maximum.
+// error printed anywhere. run() now reads with bufio.Reader.ReadString,
+// which grows its buffer to fit whatever it reads instead of enforcing a
+// fixed maximum.
 func TestRunHandlesLineLongerThan64KiB(t *testing.T) {
 	const terms = 40000 // "0" followed by 40000 "+1"s is 80001 bytes, safely over 65536.
 	expression := "0" + strings.Repeat("+1", terms)

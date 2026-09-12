@@ -1,3 +1,5 @@
+package decirational;
+
 public final class AllTests {
     public static void main(final String[] args) {
         final TestFramework[] suites = {

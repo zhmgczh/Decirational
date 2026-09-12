@@ -1,7 +1,8 @@
+package decirational;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.Scanner;
 import java.util.function.Function;
 
 public final class Lexer<T extends CustomInteger<T>> {
@@ -96,14 +97,5 @@ public final class Lexer<T extends CustomInteger<T>> {
         }
         record_token(expression, set, left_index, right_index, tokens);
         return tokens;
-    }
-
-    public static void main(final String[] args) {
-        final Scanner input = new Scanner(System.in);
-        final Lexer<TightInteger> lexer = new Lexer<>(TightInteger::new);
-        while (input.hasNextLine()) {
-            final String expression = input.nextLine();
-            System.out.println(lexer.get_tokens(expression));
-        }
     }
 }

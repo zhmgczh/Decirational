@@ -1,17 +1,17 @@
 use crate::arithmetic::*;
 use crate::custom_integer::{CustomInteger, DError, DResult};
 use crate::decimal_integer::DecimalInteger;
+use crate::ops_macros::{forward_binop, forward_checked_binop, forward_unop};
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 /// 32*log10(2): decimal digits needed per base-2^32 word, used to size
-/// scratch buffers before base conversion (mirrors Java's
-/// Arithmetic.tight_to_decimal_length_ratio).
+/// scratch buffers before base conversion.
 const TIGHT_TO_DECIMAL_LENGTH_RATIO: f64 = 9.632_959_861_247_398;
 
 /// An arbitrary-precision signed integer stored as base-2^32 words, most
-/// significant first. The Rust counterpart of Java's TightInteger, selectable
-/// via --integer=tight.
+/// significant first. Selectable via --integer=tight.
 #[derive(Debug, Clone)]
 pub struct TightInteger {
     negative: bool,
@@ -50,16 +50,14 @@ impl TightInteger {
     }
 
     /// Builds a single-word TightInteger directly from a 32-bit integer,
-    /// without going through decimal string parsing (mirrors Java's
-    /// TightInteger(int) constructor, including its use of a widened 64-bit
-    /// intermediate to negate i32::MIN without overflow).
+    /// without going through decimal string parsing. Widens to i64 before
+    /// negating so i32::MIN doesn't overflow.
     pub fn from_i32(n: i32) -> Self {
         let abs = reverse_abs_64(n as i64);
         Self::from_words_unsafe(vec![abs as u32], abs != n as i64)
     }
 
-    /// Builds a TightInteger from a 64-bit integer via a decimal string
-    /// round-trip, mirroring Java's TightInteger(long) constructor.
+    /// Builds a TightInteger from a 64-bit integer via a decimal string round-trip.
     pub fn from_i64(n: i64) -> Self {
         Self::parse(&n.to_string()).expect("formatting an i64 always yields a parseable integer")
     }
@@ -240,8 +238,8 @@ impl CustomInteger for TightInteger {
     }
 
     fn gcd(&self, other: &Self) -> Self {
-        if self.is_zero() { return other.clone(); }
-        if other.is_zero() { return self.clone(); }
+        if self.is_zero() { return other.abs(); }
+        if other.is_zero() { return self.abs(); }
         if self.is_unit_abs() || other.is_unit_abs() { return Self::one(); }
         let mut words = vec![0u32; self.words.len().min(other.words.len())];
         gcd_words(&mut words, &self.words, &other.words);
@@ -271,5 +269,19 @@ impl CustomInteger for TightInteger {
             }
         }
         Ok(result)
+    }
+}
+
+forward_binop!(Add, add, plus, TightInteger);
+forward_binop!(Sub, sub, minus, TightInteger);
+forward_binop!(Mul, mul, multiply, TightInteger);
+forward_checked_binop!(Div, div, divide_by, TightInteger);
+forward_checked_binop!(Rem, rem, modulo, TightInteger);
+forward_unop!(Neg, neg, negate, TightInteger);
+
+impl FromStr for TightInteger {
+    type Err = DError;
+    fn from_str(s: &str) -> DResult<Self> {
+        Self::parse(s)
     }
 }

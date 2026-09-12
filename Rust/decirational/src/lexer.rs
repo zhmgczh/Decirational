@@ -4,20 +4,9 @@ use crate::decimal_integer::strip_whitespace;
 use crate::rational::parse_rational;
 use crate::token::Token;
 
-/// Tokenizes an expression string, the Rust counterpart of Java's generic
-/// Lexer<T>.
-///
-/// Java classifies each character by intersecting per-character sets of
-/// possible token kinds (a HashMap<Character, LinkedHashSet<Token>>), merging
-/// runs of characters whose possible-kind sets keep overlapping, then - for a
-/// run that turned out to be a non-operand (structural) token - re-expands it
-/// back into one token per character. Tracing that mechanism through shows it
-/// is exactly equivalent to the much simpler rule used here: every
-/// structural character (one of "()[]|+-*/%^") is always its own token, and
-/// every maximal run of number characters (digits, '.', '{', '}') becomes
-/// one operand token. (Verified against the Java lexer, including the "++"
-/// -> two separate PLUS tokens edge case that motivated double-checking
-/// this.)
+/// Tokenizes an expression string: every structural character (one of
+/// "()[]|+-*/%^") is always its own token, and every maximal run of number
+/// characters (digits, '.', '{', '}') becomes one operand token.
 pub struct Lexer<T: CustomInteger> {
     from_i32: Box<dyn Fn(i32) -> T>,
     parse_int: Box<dyn Fn(&str) -> DResult<T>>,
@@ -29,10 +18,9 @@ fn is_number_char(c: u8) -> bool {
 
 impl<T: CustomInteger> Lexer<T> {
     /// Builds a Lexer that constructs integer operands via `from_i32` (for
-    /// literals that fit a 32-bit int, matching Java's Operand preferring
-    /// Integer.parseInt) and `parse_int` (for larger literals and as the
-    /// fallback used to build the numerator/denominator of a rational
-    /// literal).
+    /// literals that fit a 32-bit int) and `parse_int` (for larger literals
+    /// and as the fallback used to build the numerator/denominator of a
+    /// rational literal).
     pub fn new(from_i32: impl Fn(i32) -> T + 'static, parse_int: impl Fn(&str) -> DResult<T> + 'static) -> Self {
         Lexer { from_i32: Box::new(from_i32), parse_int: Box::new(parse_int) }
     }

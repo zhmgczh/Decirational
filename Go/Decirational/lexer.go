@@ -5,28 +5,18 @@ import (
 	"strconv"
 )
 
-// Lexer[T] tokenizes an expression string, the Go counterpart of Java's
-// generic Lexer<T>.
-//
-// Java classifies each character by intersecting per-character sets of
-// possible token kinds (a HashMap<Character, LinkedHashSet<Token>>), merging
-// runs of characters whose possible-kind sets keep overlapping, then - for a
-// run that turned out to be a non-operand (structural) token - re-expands it
-// back into one token per character. Tracing that mechanism through shows it
-// is exactly equivalent to the much simpler rule used here: every structural
-// character (one of "()[]|+-*/%^") is always its own token, and every
-// maximal run of number characters (digits, '.', '{', '}') becomes one
-// operand token. (Verified against the Java lexer, including the "++" -> two
-// separate PLUS tokens edge case that motivated double-checking this.)
+// Lexer[T] tokenizes an expression string: every structural character (one
+// of "()[]|+-*/%^") is always its own token, and every maximal run of number
+// characters (digits, '.', '{', '}') becomes one operand token.
 type Lexer[T CustomInteger[T]] struct {
 	fromInt32 func(int32) T
 	parseInt  func(string) (T, error)
 }
 
-// NewLexer builds a Lexer that constructs integer operands via fromInt32 (for
-// literals that fit a 32-bit int, matching Java's Operand preferring
-// Integer.parseInt) and parseInt (for larger literals and as the fallback
-// used to build the numerator/denominator of a rational literal).
+// NewLexer builds a Lexer that constructs integer operands via fromInt32
+// (for literals that fit a 32-bit int) and parseInt (for larger literals and
+// as the fallback used to build the numerator/denominator of a rational
+// literal).
 func NewLexer[T CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error)) Lexer[T] {
 	return Lexer[T]{fromInt32, parseInt}
 }

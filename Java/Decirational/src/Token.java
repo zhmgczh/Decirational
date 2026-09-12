@@ -1,3 +1,5 @@
+package decirational;
+
 public interface Token {
     char get_type_code();
 

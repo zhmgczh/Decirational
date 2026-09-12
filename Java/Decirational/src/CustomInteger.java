@@ -1,3 +1,5 @@
+package decirational;
+
 public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T> {
     boolean is_zero();
 

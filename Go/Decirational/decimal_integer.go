@@ -6,16 +6,14 @@ import (
 	"strings"
 )
 
-// decimalToTightLengthRatio / tightToDecimalLengthRatio mirror Java's
-// Arithmetic.decimal_to_tight_length_ratio / tight_to_decimal_length_ratio:
-// the number of base-2^32 words (resp. decimal digits) needed per decimal
-// digit (resp. word), used to size scratch buffers before base conversion.
+// decimalToTightLengthRatio / tightToDecimalLengthRatio are the number of
+// base-2^32 words (resp. decimal digits) needed per decimal digit (resp.
+// word), used to size scratch buffers before base conversion.
 const decimalToTightLengthRatio = 0.10381288809031315 // log(10) / (32*log(2))
 const tightToDecimalLengthRatio = 9.632959861247398   // 32*log10(2)
 
 // DecimalInteger is an arbitrary-precision signed integer stored as base-10
-// digits, most significant first. It is the Go counterpart of Java's
-// DecimalInteger and is the default CustomInteger backend.
+// digits, most significant first. It is the default CustomInteger backend.
 type DecimalInteger struct {
 	negative bool
 	digits   []byte
@@ -343,10 +341,10 @@ func (d DecimalInteger) DivideByAndModulo(other DecimalInteger) [2]DecimalIntege
 
 func (d DecimalInteger) Gcd(other DecimalInteger) DecimalInteger {
 	if d.IsZero() {
-		return other
+		return other.Abs()
 	}
 	if other.IsZero() {
-		return d
+		return d.Abs()
 	}
 	if d.IsUnitAbs() || other.IsUnitAbs() {
 		return DecimalOne

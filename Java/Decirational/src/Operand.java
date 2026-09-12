@@ -1,3 +1,5 @@
+package decirational;
+
 import java.util.function.Function;
 
 public final class Operand implements Token {

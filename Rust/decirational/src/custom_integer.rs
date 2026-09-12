@@ -1,11 +1,7 @@
 use std::fmt;
 
-/// A simple string-based error, used throughout for anything Java expresses
-/// as an unchecked exception (NumberFormatException, ArithmeticException,
-/// IllegalArgumentException). Unlike the Go port (which uses panic/recover,
-/// a normalized Go idiom for "let this propagate through many call layers"),
-/// idiomatic Rust favors `Result` end to end, so every fallible operation
-/// here returns one.
+/// A simple string-based error covering every fallible operation in this
+/// crate (bad input, division by zero, out-of-range arguments).
 #[derive(Debug, Clone)]
 pub struct DError(pub String);
 
@@ -25,23 +21,12 @@ impl DError {
 
 pub type DResult<T> = Result<T, DError>;
 
-/// CustomInteger is the Rust counterpart of the Java CustomInteger<T>
-/// interface: an arbitrary-precision signed integer. DecimalInteger and
-/// TightInteger both implement it, and Rational<T> is generic over it,
-/// exactly as in the Java version (`T extends CustomInteger<T>` there,
-/// `T: CustomInteger` here - Rust's `Self` plays the role Java's `T` plays).
+/// An arbitrary-precision signed integer. `DecimalInteger` and
+/// `TightInteger` both implement it, and `Rational<T>` is generic over it.
 pub trait CustomInteger: Sized + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Display {
-    /// Builds a T for a small machine integer directly, with no existing T
-    /// needed to call it on. Java's generics (erased, no static dispatch
-    /// through a type parameter) and Go's (interface constraints are pure
-    /// method sets, no way to require a constructor either) cannot express
-    /// this at all - both are limited to instance methods, which is why
-    /// Rational<T>'s base-10 helpers used to build constants like 5 and 10
-    /// by hand out of repeated `plus`/`multiply` starting from `pow(0)`, the
-    /// only value obtainable without a T already in hand. A Rust trait can
-    /// declare an associated function with no `self` parameter, so callers
-    /// with just a type bound (`T: CustomInteger`) can call `T::from_i64(10)`
-    /// directly.
+    /// An associated function (no `self` needed) so callers with just a type
+    /// bound (`T: CustomInteger`) can build a small constant, e.g.
+    /// `T::from_i64(10)`, without already holding a `T`.
     fn from_i64(n: i64) -> Self;
 
     fn is_zero(&self) -> bool;

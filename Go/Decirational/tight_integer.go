@@ -6,8 +6,7 @@ import (
 )
 
 // TightInteger is an arbitrary-precision signed integer stored as base-2^32
-// words, most significant first. It is the Go counterpart of Java's
-// TightInteger, selectable via --integer=tight.
+// words, most significant first. Selectable via --integer=tight.
 type TightInteger struct {
 	negative bool
 	words    []uint32
@@ -43,9 +42,8 @@ func NewTightInteger(words []uint32, negative bool) (TightInteger, error) {
 }
 
 // NewTightIntegerFromInt32 builds a single-word TightInteger directly from a
-// 32-bit integer, without going through decimal string parsing (mirrors
-// Java's TightInteger(int) constructor, including its use of a widened
-// 64-bit intermediate to negate math.MinInt32 without overflow).
+// 32-bit integer, without going through decimal string parsing. Widens to
+// int64 before negating so math.MinInt32 doesn't overflow.
 func NewTightIntegerFromInt32(n int32) TightInteger {
 	abs := reverseAbs64(int64(n))
 	words := []uint32{uint32(abs)}
@@ -53,7 +51,7 @@ func NewTightIntegerFromInt32(n int32) TightInteger {
 }
 
 // NewTightIntegerFromInt64 builds a TightInteger from a 64-bit integer via a
-// decimal string round-trip, mirroring Java's TightInteger(long) constructor.
+// decimal string round-trip.
 func NewTightIntegerFromInt64(n int64) TightInteger {
 	t, err := ParseTightInteger(strconv.FormatInt(n, 10))
 	if err != nil {
@@ -282,10 +280,10 @@ func (t TightInteger) DivideByAndModulo(other TightInteger) [2]TightInteger {
 
 func (t TightInteger) Gcd(other TightInteger) TightInteger {
 	if t.IsZero() {
-		return other
+		return other.Abs()
 	}
 	if other.IsZero() {
-		return t
+		return t.Abs()
 	}
 	if t.IsUnitAbs() || other.IsUnitAbs() {
 		return TightOne

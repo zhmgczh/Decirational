@@ -1,6 +1,5 @@
-// Command decirational is the Go counterpart of the Java Main entry point:
-// a REPL that reads one arithmetic expression per line from standard input
-// and prints its value.
+// Command decirational is a REPL that reads one arithmetic expression per
+// line from standard input and prints its value.
 package main
 
 import (
@@ -11,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	dec "github.com/zhmgczh/Decirational"
+	dec "github.com/zhmgczh/Decirational/Go/Decirational"
 )
 
 const usage = `Usage: decirational [--integer=decimal|tight] [--format=<format>] [--precision=N]
@@ -50,11 +49,10 @@ func main() {
 			format = strings.TrimPrefix(arg, "--format=")
 		case strings.HasPrefix(arg, "--precision="):
 			value := strings.TrimPrefix(arg, "--precision=")
-			// Parsed as int32 (not Go's native, wider int) so a value Java's
-			// `Integer.parseInt`/Rust's `i32` parse would reject as out of
-			// range is rejected here too, instead of silently accepted and
-			// then attempted (which previously hung on an astronomically
-			// large computation for exactly such an input).
+			// Parsed as int32 (not Go's native, wider int) so an out-of-range
+			// value is rejected here, instead of silently accepted and then
+			// attempted (which previously hung on an astronomically large
+			// computation for exactly such an input).
 			n, err := strconv.ParseInt(value, 10, 32)
 			if err != nil {
 				fail("Invalid --precision value: " + value)
@@ -86,18 +84,16 @@ func fail(message string) {
 }
 
 // run reads one arithmetic expression per line from in and writes its value
-// (or an "Error: ..." line) to out, matching Java's Scanner/nextLine and
-// Rust's BufRead::lines: an expression line is read in full no matter how
-// long it is, bounded only by available memory.
+// (or an "Error: ..." line) to out. An expression line is read in full no
+// matter how long it is, bounded only by available memory.
 //
 // This deliberately does NOT use bufio.Scanner: its default Buffer caps a
 // single line at bufio.MaxScanTokenSize (64 KiB), and exceeding that makes
 // Scan() return false as if the input had simply ended - silently dropping
 // the oversized line (and every line after it) with no error and an exit
-// code of 0, unless the caller separately checks Scanner.Err(). Java and
-// Rust have no such cap, so a long expression that they evaluate normally
-// would previously vanish here.  bufio.Reader.ReadString has no analogous
-// limit: it grows its buffer to fit whatever it reads.
+// code of 0, unless the caller separately checks Scanner.Err().
+// bufio.Reader.ReadString has no analogous limit: it grows its buffer to fit
+// whatever it reads.
 func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) (T, error), format string, precision int32, in io.Reader, out io.Writer) error {
 	formatter, err := makeFormatter[T](format, precision)
 	if err != nil {
@@ -126,13 +122,12 @@ func run[T dec.CustomInteger[T]](fromInt32 func(int32) T, parseInt func(string) 
 	}
 }
 
-// evalLine covers the same scope as Java's per-line try/catch: tokenizing,
-// parsing, AND formatting. Parser.Parse already recovers panics raised
-// during tokenizing/parsing on its own, but formatting a successfully-parsed
-// result (e.g. an absurd --precision) can still panic, and that call sits
-// outside Parser.Parse - so this needs its own recover too, or such a panic
-// would crash the whole REPL instead of reporting one bad line and
-// continuing, exactly as it did before this function existed.
+// evalLine covers tokenizing, parsing, AND formatting. Parser.Parse already
+// recovers panics raised during tokenizing/parsing on its own, but
+// formatting a successfully-parsed result (e.g. an absurd --precision) can
+// still panic, and that call sits outside Parser.Parse - so this needs its
+// own recover too, or such a panic would crash the whole REPL instead of
+// reporting one bad line and continuing.
 func evalLine[T dec.CustomInteger[T]](lexer dec.Lexer[T], parser *dec.Parser[T], formatter func(dec.Rational[T]) string, expression string) (result string, err error) {
 	defer func() {
 		if r := recover(); r != nil {

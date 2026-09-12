@@ -1,17 +1,17 @@
 use crate::arithmetic::*;
 use crate::custom_integer::{CustomInteger, DError, DResult};
+use crate::ops_macros::{forward_binop, forward_checked_binop, forward_unop};
 use crate::tight_integer::TightInteger;
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 /// log(10) / (32*log(2)): base-2^32 words needed per decimal digit, used to
-/// size scratch buffers before base conversion (mirrors Java's
-/// Arithmetic.decimal_to_tight_length_ratio).
+/// size scratch buffers before base conversion.
 const DECIMAL_TO_TIGHT_LENGTH_RATIO: f64 = 0.103_812_888_090_313_15;
 
 /// An arbitrary-precision signed integer stored as base-10 digits, most
-/// significant first. The Rust counterpart of Java's DecimalInteger and the
-/// default CustomInteger backend.
+/// significant first. The default `CustomInteger` backend.
 #[derive(Debug, Clone)]
 pub struct DecimalInteger {
     negative: bool,
@@ -274,8 +274,8 @@ impl CustomInteger for DecimalInteger {
     }
 
     fn gcd(&self, other: &Self) -> Self {
-        if self.is_zero() { return other.clone(); }
-        if other.is_zero() { return self.clone(); }
+        if self.is_zero() { return other.abs(); }
+        if other.is_zero() { return self.abs(); }
         if self.is_unit_abs() || other.is_unit_abs() { return Self::one(); }
         let mut digits = vec![0u8; self.digits.len().min(other.digits.len())];
         gcd_digits(&mut digits, &self.digits, &other.digits);
@@ -305,5 +305,19 @@ impl CustomInteger for DecimalInteger {
             }
         }
         Ok(result)
+    }
+}
+
+forward_binop!(Add, add, plus, DecimalInteger);
+forward_binop!(Sub, sub, minus, DecimalInteger);
+forward_binop!(Mul, mul, multiply, DecimalInteger);
+forward_checked_binop!(Div, div, divide_by, DecimalInteger);
+forward_checked_binop!(Rem, rem, modulo, DecimalInteger);
+forward_unop!(Neg, neg, negate, DecimalInteger);
+
+impl FromStr for DecimalInteger {
+    type Err = DError;
+    fn from_str(s: &str) -> DResult<Self> {
+        Self::parse(s)
     }
 }

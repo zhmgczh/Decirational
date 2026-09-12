@@ -1,3 +1,5 @@
+package decirational;
+
 public final class DecimalIntegerTest {
     private static void verify_division_identity(final TestFramework t, final String a_str, final String b_str) {
         final DecimalInteger a = new DecimalInteger(a_str);
@@ -137,6 +139,8 @@ public final class DecimalIntegerTest {
         t.check_equals("5", new DecimalInteger("0").gcd(new DecimalInteger("5")).toString(), "gcd(0,x)=x");
         t.check_equals("5", new DecimalInteger("5").gcd(new DecimalInteger("0")).toString(), "gcd(x,0)=x");
         t.check_equals("6", new DecimalInteger("-12").gcd(new DecimalInteger("18")).toString(), "gcd ignores sign");
+        t.check_equals("5", new DecimalInteger("0").gcd(new DecimalInteger("-5")).toString(), "gcd(0,-x)=x");
+        t.check_equals("5", new DecimalInteger("-5").gcd(new DecimalInteger("0")).toString(), "gcd(-x,0)=x");
         t.check_equals("42", new DecimalInteger("21").lcm(new DecimalInteger("6")).toString(), "lcm(21,6)");
         t.check_equals("0", new DecimalInteger("0").lcm(new DecimalInteger("5")).toString(), "lcm(0,x)=0");
 

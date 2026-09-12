@@ -1,6 +1,7 @@
+package decirational;
+
 import java.util.HashMap;
 import java.util.Objects;
-import java.util.Scanner;
 import java.util.function.Function;
 
 public final class Rational<T extends CustomInteger<T>> implements Comparable<Rational<T>> {
@@ -470,25 +471,5 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             }
         }
         return result;
-    }
-
-    public static void main(final String[] args) {
-        final Scanner input = new Scanner(System.in);
-        while (input.hasNextLine()) {
-            final String a_str = input.nextLine().trim();
-            final String b_str = input.nextLine().trim();
-            final Rational<TightInteger> a = new Rational<>(a_str, TightInteger::new);
-            final Rational<TightInteger> b = new Rational<>(b_str, TightInteger::new);
-            System.out.println(a);
-            System.out.println(b);
-            System.out.println(a.to_decimal_string());
-            System.out.println(b.to_decimal_string());
-            System.out.println(a.compareTo(b));
-            System.out.println(a.plus(b));
-            System.out.println(a.minus(b));
-            System.out.println(a.multiply(b));
-            System.out.println(a.divide_by(b));
-            System.out.println(a.pow(2));
-        }
     }
 }

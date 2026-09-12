@@ -2,19 +2,14 @@ use crate::custom_integer::CustomInteger;
 use crate::rational::Rational;
 use std::fmt;
 
-/// The Rust counterpart of Java's Token hierarchy. Java represents each kind
-/// of token as its own class/enum implementing a shared `Token` interface
-/// (OperandType, Operator, Parenthesis, Floor, Absolute, plus the Operand
-/// class carrying a value); Rust's sum-type enums let all of that collapse
-/// into one type with no loss of the same distinctions the parser needs to
-/// make - a clean fit for "choose the most suitable structure per language".
+/// Every token kind the lexer can produce and the parser consumes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<T: CustomInteger> {
-    /// A literal that fit a 32-bit int (Java's OperandType::INTEGER).
+    /// A literal that fits a 32-bit int.
     Integer(T),
-    /// A literal too big for a 32-bit int (Java's OperandType::LARGE_INTEGER).
+    /// A literal too big for a 32-bit int.
     LargeInteger(T),
-    /// A decimal or repeating-decimal literal (Java's OperandType::RATIONAL).
+    /// A decimal or repeating-decimal literal.
     Rational(Rational<T>),
     Plus,
     Minus,
@@ -30,8 +25,7 @@ pub enum Token<T: CustomInteger> {
     LeftFloor,
     RightFloor,
     /// The same `|` character opens and closes an absolute-value group;
-    /// which is which is resolved by the parser's grammar position, exactly
-    /// as in the Java version.
+    /// which is which is resolved by the parser's grammar position.
     AbsoluteBar,
 }
 

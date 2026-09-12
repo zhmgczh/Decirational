@@ -1,3 +1,5 @@
+package decirational;
+
 import java.util.Arrays;
 
 public final class ArithmeticTest {

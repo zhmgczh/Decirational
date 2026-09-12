@@ -1,3 +1,5 @@
+package decirational;
+
 public enum Floor implements Token {
     LEFT_FLOOR('['), RIGHT_FLOOR(']');
     private final char type_code;

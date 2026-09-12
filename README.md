@@ -13,7 +13,7 @@ To ensure maximum interoperability and performance flexibility, this project pro
 * **High Concurrency Ready**: Thread-safe, immutable architecture designed for lock-free read operations and high-throughput multi-threaded environments.
 * **Implementation Parity**: Strict functional and API consistency across Rust, Go, and Java — the three CLIs accept identical flags and produce byte-for-byte identical output for identical input.
 * **Zero Dependencies**: Utilizes native big-number abstractions or highly audited, lightweight implementations to maintain secure, high-performance execution.
-* **Thoroughly Tested**: 506 assertions in Java, 55 test functions in Go, and 60 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
+* **Thoroughly Tested**: 518 assertions in Java, 60 test functions in Go, and 65 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
 
 ## 🧮 The Calculator
 
@@ -100,9 +100,9 @@ $ echo '1234' | decirational --format=truncate --precision=-2
 
 ### 🦀 Rust
 
-The Rust implementation lives under [`Rust/decirational`](Rust/decirational): a library crate (`decirational`) plus a `decirational` binary, with zero external dependencies. Fallible parsing/construction returns `Result<_, DError>` (Rust's idiomatic mechanism, unlike the unchecked exceptions Java throws or the panic/recover Go uses for the same cases); a handful of pure-arithmetic edge cases (dividing by zero, an absurd `--precision`) `panic!`, matching how Rust's own `/` operator behaves.
+The Rust implementation lives under [`Rust/decirational`](Rust/decirational): a library crate (`decirational`) plus a `decirational` binary, with zero external dependencies. Fallible parsing/construction returns `Result<_, DError>` (Rust's idiomatic mechanism, unlike the unchecked exceptions Java throws or the panic/recover Go uses for the same cases); a handful of pure-arithmetic edge cases (dividing by zero, an absurd `--precision`) `panic!`, matching how Rust's own `/` operator behaves. `DecimalInteger`, `TightInteger`, and `Rational<T>` all implement the standard `std::ops` operators (`+ - * / % -`, in every value/reference combination — `a + b`, `&a + &b`, etc.) and `FromStr`, so `a + b` and `"1/3".parse()` work exactly as they would for any other Rust numeric type, on top of the `plus`/`minus`/`multiply`/`divide_by`/`modulo`/`negate` methods every port shares.
 
-60 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
+65 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
 
 #### Running it
 
@@ -136,9 +136,9 @@ Add a path (or git) dependency on `Rust/decirational` and use its types directly
 ```rust
 use decirational::{DecimalInteger, Rational};
 
-let a = Rational::new(DecimalInteger::from_i64(1), DecimalInteger::from_i64(3))?;
-let b = Rational::new(DecimalInteger::from_i64(1), DecimalInteger::from_i64(6))?;
-let sum = a.plus(&b);
+let a: Rational<DecimalInteger> = "1/3".parse()?;
+let b: Rational<DecimalInteger> = "1/6".parse()?;
+let sum = &a + &b; // or a.plus(&b) - both are available
 println!("{}", sum);                    // 1/2 - fraction form, via Display (Rust's toString() equivalent)
 println!("{}", sum.to_decimal_string()); // 0.5 - decimal form, with {cyclic} repetends
 ```
@@ -210,7 +210,7 @@ See the header for the full function list (construction, `add`/`sub`/`mul`/`div`
 
 The Go implementation lives under [`Go/Decirational`](Go/Decirational) as the importable package `decirational`, with its CLI in [`cmd/decirational`](Go/Decirational/cmd/decirational). It targets Go 1.23+ (for the `clear`/`min`/`max` builtins) and has zero external dependencies. Fallible parsing/construction returns `(_, error)`; mid-computation arithmetic failures (division by zero, matching Go's own `/` operator) panic and are recovered once at `Parser.Parse`, so callers only ever see a single `error`.
 
-55 test functions live across [`*_test.go`](Go/Decirational) — `go test ./...` to run them.
+60 test functions live across [`*_test.go`](Go/Decirational) — `go test ./...` to run them.
 
 #### Running it
 
@@ -237,8 +237,14 @@ echo '0.1+0.2-0.3+1/3' | ./decirational
 
 #### Calling the package separately
 
+The module lives in a subdirectory of this repo, not at its root, so its module path carries that subdirectory (`go get` resolves this the same way it would any repo where the module isn't at the root):
+
+```bash
+go get github.com/zhmgczh/Decirational/Go/Decirational
+```
+
 ```go
-import dec "github.com/zhmgczh/Decirational"
+import dec "github.com/zhmgczh/Decirational/Go/Decirational"
 
 a, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(3))
 b, _ := dec.NewRational(dec.NewDecimalIntegerFromInt64(1), dec.NewDecimalIntegerFromInt64(6))
@@ -260,9 +266,9 @@ Core types: the generic `CustomInteger[T]` interface, implemented by `DecimalInt
 
 ### ☕ Java
 
-The Java implementation lives under [`Java/Decirational`](Java/Decirational). It targets JDK 21, has zero external dependencies, and every class (arbitrary-precision integers, rationals, lexer, parser) is plain `.java` with no package declaration — nothing to install beyond a JDK.
+The Java implementation lives under [`Java/Decirational`](Java/Decirational). It targets JDK 21, has zero external dependencies, and every class (arbitrary-precision integers, rationals, lexer, parser) lives in a single `decirational` package — nothing to install beyond a JDK.
 
-506 assertions live across [`Java/Decirational/test`](Java/Decirational/test) — run them via `javac -d out src/*.java test/*.java && java -cp out AllTests`.
+518 assertions live across [`Java/Decirational/test`](Java/Decirational/test) (also in the `decirational` package, so they call the API directly with no imports needed) — run them via `javac -d out src/*.java test/*.java && java -cp out decirational.AllTests`.
 
 #### Running it
 
@@ -286,14 +292,17 @@ or with a JDK 21+ toolchain directly:
 ```bash
 cd Java/Decirational/src
 javac -d out *.java
-java -cp out Main
+java -cp out decirational.Main
 ```
 
 #### Calling the package separately
 
-The sources have no package declaration, so you can drop the `.java` files from `Java/Decirational/src` straight into your own project (or compile them into a `.jar`) and call the API directly, without going through the REPL:
+The classes live in the `decirational` package, so you can drop the `.java` files from `Java/Decirational/src` straight into your own project (or compile them into a `.jar`) and call the API directly, without going through the REPL:
 
 ```java
+import decirational.DecimalInteger;
+import decirational.Rational;
+
 Rational<DecimalInteger> a = new Rational<>("1/3", DecimalInteger::new);
 Rational<DecimalInteger> b = new Rational<>("1/6", DecimalInteger::new);
 Rational<DecimalInteger> result = a.plus(b);
@@ -304,6 +313,10 @@ System.out.println(result.to_decimal_string()); // 0.5 - decimal form, with {cyc
 Or drive the lexer/parser directly on a raw expression string, the same way `Main` does internally:
 
 ```java
+import decirational.Lexer;
+import decirational.Parser;
+import decirational.TightInteger;
+
 Lexer<TightInteger> lexer = new Lexer<>(TightInteger::new);
 Parser<TightInteger> parser = new Parser<>(TightInteger::new);
 Rational<TightInteger> result = parser.parse(lexer.get_tokens("(1+2)*|-4|^2/[7.5]"));
@@ -358,7 +371,7 @@ Every value the calculator computes is a `Rational<T>` — an exact fraction ove
 | `compareTo`/`Compare`, `equals`/`Equals` | ordering and equality by value (`1/2` equals `2/4`) |
 | `toString`/`String`/`Display`, `to_fraction_string`, `to_mixed_string`, `to_decimal_string`, `to_truncate_decimal_string`, `to_round_decimal_string`, `to_ceil_decimal_string`, `to_floor_decimal_string` | text conversion — one method per [`--format`](#--format-how-the-result-is-rendered) value above |
 
-Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`from_integer`/`NewRationalFromInteger`, denominator `1`), or — in Java and Go — a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger::new)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go). The Rust version exposes the same string parsing as the free function `parse_rational` rather than an inherent method, since `Rational<T>` doesn't implement `FromStr`.
+Construction accepts a numerator/denominator pair (`new Rational<>(n, d)` / `Rational::new` / `NewRational`, auto-reducing and rejecting a zero denominator), a bare integer (`from_integer`/`NewRationalFromInteger`, denominator `1`), or a string in any literal syntax the calculator itself accepts: a fraction, a decimal, or a repeating decimal (`new Rational<>("1.5{6}", DecimalInteger::new)` in Java, `dec.ParseRational[dec.DecimalInteger]("1.5{6}", dec.ParseDecimalInteger)` in Go, `"1.5{6}".parse::<Rational<DecimalInteger>>()` or the free function `parse_rational` in Rust — `Rational<T>` implements `FromStr` whenever `T` does, which both `DecimalInteger` and `TightInteger` do).
 
 ## ⚙️ Concurrency & Architecture
 

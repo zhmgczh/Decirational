@@ -1,3 +1,5 @@
+package decirational;
+
 public enum Parenthesis implements Token {
     LEFT_PARENTHESIS('('), RIGHT_PARENTHESIS(')');
     private final char type_code;

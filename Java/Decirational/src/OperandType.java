@@ -1,3 +1,5 @@
+package decirational;
+
 public enum OperandType implements Token {
     INTEGER('i'), LARGE_INTEGER('l'), RATIONAL('r');
     private final char operand_code;

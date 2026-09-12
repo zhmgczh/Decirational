@@ -9,7 +9,7 @@ From: eclipse-temurin:21-jdk
     javac -d /opt/decirational/out /opt/decirational/src/*.java
 
 %runscript
-    exec java -cp /opt/decirational/out Main "$@"
+    exec java -cp /opt/decirational/out decirational.Main "$@"
 
 %labels
     Application Decirational
