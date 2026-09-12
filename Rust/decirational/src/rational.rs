@@ -317,22 +317,19 @@ forward_checked_binop!(Div, div, divide_by, Rational<T>, T: CustomInteger);
 forward_unop!(Neg, neg, negate, Rational<T>, T: CustomInteger);
 
 /// Parses the same fraction/decimal/repeating-decimal literal syntax as
-/// [`parse_rational`], using `T`'s own `FromStr` as the digit-string
-/// constructor it needs. Requires `T::Err = DError` since `parse_rational`
-/// (like the rest of this crate) reports failures that way.
-impl<T: CustomInteger + FromStr<Err = DError>> FromStr for Rational<T> {
+/// [`parse_rational`], which this just delegates to.
+impl<T: CustomInteger> FromStr for Rational<T> {
     type Err = DError;
     fn from_str(s: &str) -> DResult<Self> {
-        parse_rational(s, &|s| T::from_str(s))
+        parse_rational(s)
     }
 }
 
 /// Parses a fraction ("3/4"), decimal ("0.5"), or repeating-decimal
-/// ("0.{3}", "1.5{6}") literal into a reduced Rational<T>. `parse_int` builds
-/// a T from a plain (unsigned, digits-only) decimal string - supplied
-/// explicitly since a bare `T: CustomInteger` bound gives no way to require
-/// one (see the `FromStr` impl below for a version that doesn't need it).
-pub fn parse_rational<T: CustomInteger>(s: &str, parse_int: &dyn Fn(&str) -> DResult<T>) -> DResult<Rational<T>> {
+/// ("0.{3}", "1.5{6}") literal into a reduced Rational<T>, using `T::parse`
+/// (see `CustomInteger`) to build the numerator/denominator from plain
+/// (unsigned, digits-only) decimal strings.
+pub fn parse_rational<T: CustomInteger>(s: &str) -> DResult<Rational<T>> {
     let s = strip_whitespace(s);
     if s.is_empty() {
         return Err(DError::new("input is empty"));
@@ -389,8 +386,8 @@ pub fn parse_rational<T: CustomInteger>(s: &str, parse_int: &dyn Fn(&str) -> DRe
             Some(fb) if fb != bytes.len() - 1 => (&s[start..fb], s[fb + 1..].to_string()),
             _ => return Err(DError::new("the rational string does not have the right format")),
         };
-        let mut numerator = parse_int(numerator_str).map_err(wrap_err)?;
-        let denominator = parse_int(&denominator_str).map_err(wrap_err)?;
+        let mut numerator = T::parse(numerator_str).map_err(wrap_err)?;
+        let denominator = T::parse(&denominator_str).map_err(wrap_err)?;
         if denominator.is_zero() {
             return Err(DError::new("denominator cannot be zero"));
         }
@@ -402,8 +399,8 @@ pub fn parse_rational<T: CustomInteger>(s: &str, parse_int: &dyn Fn(&str) -> DRe
         let dp = decimal_point.unwrap();
         let numerator_str = format!("{}{}", &s[start..dp], &s[dp + 1..]);
         let denominator_str = format!("1{}", "0".repeat(bytes.len() - dp - 1));
-        let mut numerator = parse_int(&numerator_str).map_err(wrap_err)?;
-        let denominator = parse_int(&denominator_str).map_err(wrap_err)?;
+        let mut numerator = T::parse(&numerator_str).map_err(wrap_err)?;
+        let denominator = T::parse(&denominator_str).map_err(wrap_err)?;
         if negative {
             numerator = numerator.negate();
         }
@@ -415,10 +412,10 @@ pub fn parse_rational<T: CustomInteger>(s: &str, parse_int: &dyn Fn(&str) -> DRe
         let finite_denominator_str = format!("1{}", "0".repeat(cs - dp - 1));
         let cyclic_numerator_str = &s[cs + 1..ce];
         let cyclic_denominator_str = format!("{}{}", "9".repeat(ce - cs - 1), "0".repeat(cs - dp - 1));
-        let finite_numerator = parse_int(&finite_numerator_str).map_err(wrap_err)?;
-        let finite_denominator = parse_int(&finite_denominator_str).map_err(wrap_err)?;
-        let cyclic_numerator = parse_int(cyclic_numerator_str).map_err(wrap_err)?;
-        let cyclic_denominator = parse_int(&cyclic_denominator_str).map_err(wrap_err)?;
+        let finite_numerator = T::parse(&finite_numerator_str).map_err(wrap_err)?;
+        let finite_denominator = T::parse(&finite_denominator_str).map_err(wrap_err)?;
+        let cyclic_numerator = T::parse(cyclic_numerator_str).map_err(wrap_err)?;
+        let cyclic_denominator = T::parse(&cyclic_denominator_str).map_err(wrap_err)?;
         let finite = Rational::reduced(finite_numerator, finite_denominator);
         let cyclic = Rational::reduced(cyclic_numerator, cyclic_denominator);
         let mut result = finite.plus(&cyclic);

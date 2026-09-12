@@ -1,7 +1,7 @@
 package decirational;
 
 public interface Token {
-    char get_type_code();
+    char getTypeCode();
 
     String toString();
 }

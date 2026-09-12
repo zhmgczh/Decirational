@@ -45,15 +45,15 @@ public final class Operand implements Token {
     }
 
     @Override
-    public char get_type_code() {
-        return operand_type.get_type_code();
+    public char getTypeCode() {
+        return operand_type.getTypeCode();
     }
 
-    public OperandType get_operand_type() {
+    public OperandType getOperandType() {
         return operand_type;
     }
 
-    public Object get_value() {
+    public Object getValue() {
         return value;
     }
 }

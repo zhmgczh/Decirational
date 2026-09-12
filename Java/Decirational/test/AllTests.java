@@ -15,9 +15,9 @@ public final class AllTests {
         int total = 0;
         int passed = 0;
         for (final TestFramework suite : suites) {
-            suite.print_summary();
-            total += suite.get_total();
-            passed += suite.get_passed();
+            suite.printSummary();
+            total += suite.getTotal();
+            passed += suite.getPassed();
         }
 
         System.out.println("TOTAL: " + passed + "/" + total + " passed");

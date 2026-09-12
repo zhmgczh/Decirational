@@ -24,10 +24,15 @@ pub type DResult<T> = Result<T, DError>;
 /// An arbitrary-precision signed integer. `DecimalInteger` and
 /// `TightInteger` both implement it, and `Rational<T>` is generic over it.
 pub trait CustomInteger: Sized + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Display {
-    /// An associated function (no `self` needed) so callers with just a type
-    /// bound (`T: CustomInteger`) can build a small constant, e.g.
-    /// `T::from_i64(10)`, without already holding a `T`.
+    /// Associated functions (no `self` needed) so callers with just a type
+    /// bound (`T: CustomInteger`) can build a `T` without already holding
+    /// one, e.g. `T::from_i64(10)` for a small constant, `T::from_i32(n)`
+    /// for a lexed literal that fits an `i32`, or `T::parse(s)` for one that
+    /// doesn't - the same three ways `Lexer<T>` builds operands, without it
+    /// having to carry constructor closures per instance.
     fn from_i64(n: i64) -> Self;
+    fn from_i32(n: i32) -> Self;
+    fn parse(s: &str) -> DResult<Self>;
 
     fn is_zero(&self) -> bool;
     fn is_one(&self) -> bool;

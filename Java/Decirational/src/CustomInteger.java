@@ -1,15 +1,15 @@
 package decirational;
 
 public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T> {
-    boolean is_zero();
+    boolean isZero();
 
-    boolean is_one();
+    boolean isOne();
 
-    boolean is_unit_abs();
+    boolean isUnitAbs();
 
-    boolean is_positive();
+    boolean isPositive();
 
-    boolean is_negative();
+    boolean isNegative();
 
     T negate();
 
@@ -21,15 +21,15 @@ public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T>
 
     T multiply(final T other);
 
-    T multiply_base(final int times);
+    T multiplyBase(final int times);
 
-    T multiply_base();
+    T multiplyBase();
 
-    T divide_by_base(final int times);
+    T divideByBase(final int times);
 
-    T divide_by_base();
+    T divideByBase();
 
-    T divide_by(final T other);
+    T divideBy(final T other);
 
     T modulo(final T other);
 
@@ -39,5 +39,5 @@ public interface CustomInteger<T extends CustomInteger<T>> extends Comparable<T>
 
     T pow(final int exponent);
 
-    T[] divide_by_and_modulo(final T other);
+    T[] divideByAndModulo(final T other);
 }

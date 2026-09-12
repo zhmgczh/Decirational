@@ -401,14 +401,14 @@ fn rational_string_parsing() {
     let cases = [("3/4", "3/4"), ("-3/4", "-3/4"), ("6/8", "3/4"), ("5", "5"),
         ("0.5", "1/2"), ("-0.5", "-1/2"), ("0.25", "1/4"), ("0.{3}", "1/3")];
     for (input, want) in cases {
-        let parsed: Rational<DecimalInteger> = parse_rational(input, &DecimalInteger::parse).unwrap();
+        let parsed: Rational<DecimalInteger> = parse_rational(input).unwrap();
         assert_eq!(parsed.to_string(), want, "parse({:?})", input);
     }
-    let mixed: Rational<DecimalInteger> = parse_rational("1.5{6}", &DecimalInteger::parse).unwrap();
+    let mixed: Rational<DecimalInteger> = parse_rational("1.5{6}").unwrap();
     assert_eq!(mixed.to_fraction_string(), "47/30");
 
     for bad in ["", ".", "1.2.3", "1/2/3", "1/2.5", "5.", "0.{}", "1{3}", "1.2}"] {
-        assert!(parse_rational::<DecimalInteger>(bad, &DecimalInteger::parse).is_err(), "expected error parsing {:?}", bad);
+        assert!(parse_rational::<DecimalInteger>(bad).is_err(), "expected error parsing {:?}", bad);
     }
 }
 
@@ -508,7 +508,7 @@ fn rational_mixed_string() {
 // ===================== Lexer =====================
 
 fn test_lexer() -> Lexer<TightInteger> {
-    Lexer::new(TightInteger::from_i32, TightInteger::parse)
+    Lexer::new()
 }
 
 #[test]
@@ -536,10 +536,17 @@ fn lexer_basic_tokenization() {
 
 #[test]
 fn lexer_integer_boundary() {
+    // Both sides of the i32 fast path (see Lexer::parse_operand) must land
+    // on the same Token::Integer variant with the correct value - unlike
+    // Java, there's no separate "large integer" token type to check against.
     let lexer = test_lexer();
-    assert!(matches!(lexer.get_tokens("2147483647").unwrap()[0], Token::Integer(_)));
-    assert!(matches!(lexer.get_tokens("2147483648").unwrap()[0], Token::LargeInteger(_)));
-    assert!(matches!(lexer.get_tokens("99999999999999999999").unwrap()[0], Token::LargeInteger(_)));
+    let int_value = |s: &str| match &lexer.get_tokens(s).unwrap()[0] {
+        Token::Integer(v) => v.to_string(),
+        other => panic!("expected Token::Integer, got {:?}", other),
+    };
+    assert_eq!(int_value("2147483647"), "2147483647", "fits an i32");
+    assert_eq!(int_value("2147483648"), "2147483648", "one past i32::MAX");
+    assert_eq!(int_value("99999999999999999999"), "99999999999999999999", "far beyond i32");
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! A REPL that reads one arithmetic expression per line from standard input
 //! and prints its value.
 
-use decirational::{CustomInteger, DResult, DecimalInteger, Lexer, Parser, Rational, TightInteger};
+use decirational::{CustomInteger, DecimalInteger, Lexer, Parser, Rational, TightInteger};
 use std::io::{self, BufRead, Write};
 use std::panic::{self, AssertUnwindSafe};
 use std::process::exit;
@@ -56,8 +56,8 @@ fn main() {
     }
 
     let result = match integer_type.as_str() {
-        "decimal" => run::<DecimalInteger>(DecimalInteger::from_i32, DecimalInteger::parse, &format, precision),
-        "tight" => run::<TightInteger>(TightInteger::from_i32, TightInteger::parse, &format, precision),
+        "decimal" => run::<DecimalInteger>(&format, precision),
+        "tight" => run::<TightInteger>(&format, precision),
         other => Err(format!("unknown integer type: {} (expected 'decimal' or 'tight')", other)),
     };
     if let Err(message) = result {
@@ -84,14 +84,9 @@ fn make_formatter<T: CustomInteger>(format: &str, precision: i32) -> Result<Form
     }
 }
 
-fn run<T: CustomInteger + 'static>(
-    from_i32: impl Fn(i32) -> T + 'static,
-    parse_int: impl Fn(&str) -> DResult<T> + 'static,
-    format: &str,
-    precision: i32,
-) -> Result<(), String> {
+fn run<T: CustomInteger + 'static>(format: &str, precision: i32) -> Result<(), String> {
     let formatter = make_formatter::<T>(format, precision)?;
-    let lexer = Lexer::new(from_i32, parse_int);
+    let lexer = Lexer::<T>::new();
     let mut parser = Parser::<T>::new();
     let stdin = io::stdin();
     let stdout = io::stdout();

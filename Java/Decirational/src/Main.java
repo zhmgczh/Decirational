@@ -70,7 +70,7 @@ public final class Main {
     }
 
     private static <T extends CustomInteger<T>> void run(final Function<String, T> from_string, final IntFunction<T> from_int, final String format, final int precision) {
-        final Function<Rational<T>, String> formatter = make_formatter(format, precision);
+        final Function<Rational<T>, String> formatter = makeFormatter(format, precision);
         final Scanner input = new Scanner(System.in);
         final Lexer<T> lexer = new Lexer<>(from_string);
         final Parser<T> parser = new Parser<>(from_int);
@@ -80,7 +80,7 @@ public final class Main {
                 continue;
             }
             try {
-                final ArrayList<Token> tokens = lexer.get_tokens(expression);
+                final ArrayList<Token> tokens = lexer.getTokens(expression);
                 final Rational<T> result = parser.parse(tokens);
                 System.out.println(formatter.apply(result));
             } catch (final RuntimeException e) {
@@ -89,16 +89,16 @@ public final class Main {
         }
     }
 
-    private static <T extends CustomInteger<T>> Function<Rational<T>, String> make_formatter(final String format, final int precision) {
+    private static <T extends CustomInteger<T>> Function<Rational<T>, String> makeFormatter(final String format, final int precision) {
         return switch (format) {
             case "default" -> Rational::toString;
-            case "fraction" -> Rational::to_fraction_string;
-            case "mixed" -> Rational::to_mixed_string;
-            case "decimal" -> Rational::to_decimal_string;
-            case "truncate" -> r -> r.to_truncate_decimal_string(precision);
-            case "round" -> r -> r.to_round_decimal_string(precision);
-            case "ceil" -> r -> r.to_ceil_decimal_string(precision);
-            case "floor" -> r -> r.to_floor_decimal_string(precision);
+            case "fraction" -> Rational::toFractionString;
+            case "mixed" -> Rational::toMixedString;
+            case "decimal" -> Rational::toDecimalString;
+            case "truncate" -> r -> r.toTruncateDecimalString(precision);
+            case "round" -> r -> r.toRoundDecimalString(precision);
+            case "ceil" -> r -> r.toCeilDecimalString(precision);
+            case "floor" -> r -> r.toFloorDecimalString(precision);
             default -> throw new IllegalArgumentException("unknown format: " + format + " (expected default, fraction, mixed, decimal, truncate, round, ceil, or floor)");
         };
     }

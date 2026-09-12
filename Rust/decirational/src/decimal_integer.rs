@@ -168,6 +168,8 @@ impl PartialOrd for DecimalInteger {
 
 impl CustomInteger for DecimalInteger {
     fn from_i64(n: i64) -> Self { Self::from_i64(n) }
+    fn from_i32(n: i32) -> Self { Self::from_i32(n) }
+    fn parse(s: &str) -> DResult<Self> { Self::parse(s) }
 
     fn is_zero(&self) -> bool { self.digits.len() == 1 && self.digits[0] == 0 }
     fn is_one(&self) -> bool { !self.negative && self.digits.len() == 1 && self.digits[0] == 1 }

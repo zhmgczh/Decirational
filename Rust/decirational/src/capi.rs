@@ -210,14 +210,14 @@ pub extern "C" fn decirational_eval(expression: *const c_char, integer_backend: 
         let expr = unsafe { cstr_to_str(expression) }?;
         match integer_backend {
             BACKEND_DECIMAL => {
-                let lexer = Lexer::new(DecimalInteger::from_i32, DecimalInteger::parse);
+                let lexer = Lexer::<DecimalInteger>::new();
                 let mut parser = Parser::<DecimalInteger>::new();
                 let tokens = lexer.get_tokens(expr).map_err(|e| e.to_string())?;
                 let value = parser.parse(tokens).map_err(|e| e.to_string())?;
                 format_rational(&value, format, precision)
             }
             BACKEND_TIGHT => {
-                let lexer = Lexer::new(TightInteger::from_i32, TightInteger::parse);
+                let lexer = Lexer::<TightInteger>::new();
                 let mut parser = Parser::<TightInteger>::new();
                 let tokens = lexer.get_tokens(expr).map_err(|e| e.to_string())?;
                 let value = parser.parse(tokens).map_err(|e| e.to_string())?;
@@ -237,10 +237,10 @@ pub extern "C" fn decirational_rational_parse(literal: *const c_char, integer_ba
         let s = unsafe { cstr_to_str(literal) }?;
         match integer_backend {
             BACKEND_DECIMAL => Ok(RationalHandle::Decimal(
-                crate::parse_rational(s, &DecimalInteger::parse).map_err(|e| e.to_string())?,
+                crate::parse_rational::<DecimalInteger>(s).map_err(|e| e.to_string())?,
             )),
             BACKEND_TIGHT => Ok(RationalHandle::Tight(
-                crate::parse_rational(s, &TightInteger::parse).map_err(|e| e.to_string())?,
+                crate::parse_rational::<TightInteger>(s).map_err(|e| e.to_string())?,
             )),
             other => Err(format!("unknown integer_backend: {}", other)),
         }

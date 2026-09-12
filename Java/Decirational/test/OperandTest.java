@@ -5,24 +5,24 @@ public final class OperandTest {
         final TestFramework t = new TestFramework("Operand");
 
         Operand operand = new Operand("123", TightInteger::new);
-        t.check(operand.get_value() instanceof Integer, "small literal stores a plain Integer");
-        t.check_equals(123, operand.get_value(), "small literal value is correct");
-        t.check_equals('i', operand.get_type_code(), "small literal type code is 'i'");
+        t.check(operand.getValue() instanceof Integer, "small literal stores a plain Integer");
+        t.checkEquals(123, operand.getValue(), "small literal value is correct");
+        t.checkEquals('i', operand.getTypeCode(), "small literal type code is 'i'");
 
         operand = new Operand("99999999999999999999", TightInteger::new);
-        t.check(operand.get_value() instanceof TightInteger, "large literal stores the configured large-integer type");
-        t.check_equals('l', operand.get_type_code(), "large literal type code is 'l'");
-        t.check_equals(new TightInteger("99999999999999999999"), operand.get_value(), "large literal value is correct");
+        t.check(operand.getValue() instanceof TightInteger, "large literal stores the configured large-integer type");
+        t.checkEquals('l', operand.getTypeCode(), "large literal type code is 'l'");
+        t.checkEquals(new TightInteger("99999999999999999999"), operand.getValue(), "large literal value is correct");
 
         operand = new Operand("1.5", TightInteger::new);
-        t.check(operand.get_value() instanceof Rational, "decimal literal stores a Rational");
-        t.check_equals('r', operand.get_type_code(), "decimal literal type code is 'r'");
+        t.check(operand.getValue() instanceof Rational, "decimal literal stores a Rational");
+        t.checkEquals('r', operand.getTypeCode(), "decimal literal type code is 'r'");
 
         operand = new Operand("-5", TightInteger::new);
-        t.check(operand.get_value() instanceof Integer, "a signed literal parses directly as an Integer");
-        t.check_equals(-5, operand.get_value(), "signed literal value is correct");
+        t.check(operand.getValue() instanceof Integer, "a signed literal parses directly as an Integer");
+        t.checkEquals(-5, operand.getValue(), "signed literal value is correct");
 
-        t.check_throws(IllegalArgumentException.class, () -> new Operand("1.2.3", TightInteger::new), "malformed literal is rejected");
+        t.checkThrows(IllegalArgumentException.class, () -> new Operand("1.2.3", TightInteger::new), "malformed literal is rejected");
 
         return t;
     }

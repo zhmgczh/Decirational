@@ -19,12 +19,12 @@ public final class TestFramework {
         }
     }
 
-    public void check_equals(final Object expected, final Object actual, final String description) {
+    public void checkEquals(final Object expected, final Object actual, final String description) {
         final boolean ok = null == expected ? null == actual : expected.equals(actual);
         check(ok, description + " (expected <" + expected + "> but was <" + actual + ">)");
     }
 
-    public void check_throws(final Class<? extends Throwable> expected_type, final Runnable action, final String description) {
+    public void checkThrows(final Class<? extends Throwable> expected_type, final Runnable action, final String description) {
         try {
             action.run();
             check(false, description + " (expected " + expected_type.getSimpleName() + " to be thrown, but nothing was thrown)");
@@ -33,15 +33,15 @@ public final class TestFramework {
         }
     }
 
-    public int get_total() {
+    public int getTotal() {
         return total;
     }
 
-    public int get_passed() {
+    public int getPassed() {
         return passed;
     }
 
-    public void print_summary() {
+    public void printSummary() {
         System.out.println("[" + suite_name + "] " + passed + "/" + total + " passed");
         if (passed != total) {
             System.out.print(failures);

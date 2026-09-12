@@ -10,15 +10,15 @@ public final class Lexer<T extends CustomInteger<T>> {
     private static final HashMap<Character, LinkedHashSet<Token>> char_table = new HashMap<>();
     private static final Token[] normal_tokens = {Parenthesis.LEFT_PARENTHESIS, Parenthesis.RIGHT_PARENTHESIS, Floor.LEFT_FLOOR, Floor.RIGHT_FLOOR, Absolute.ABSOLUTE, Operator.PLUS, Operator.MINUS, Operator.MULTIPLICATION, Operator.DIVISION, Operator.MODULO, Operator.POWER};
 
-    private static void register_token(Token token) {
+    private static void registerToken(Token token) {
         LinkedHashSet<Token> token_set = new LinkedHashSet<>();
         token_set.add(token);
-        char_table.put(token.get_type_code(), token_set);
+        char_table.put(token.getTypeCode(), token_set);
     }
 
     static {
         for (Token token : normal_tokens) {
-            register_token(token);
+            registerToken(token);
         }
         LinkedHashSet<Token> number_set = new LinkedHashSet<>();
         number_set.add(OperandType.INTEGER);
@@ -38,7 +38,7 @@ public final class Lexer<T extends CustomInteger<T>> {
         this.from_string = from_string;
     }
 
-    private void record_token(String expression, LinkedHashSet<Token> set, int left_index, int right_index, ArrayList<Token> tokens) {
+    private void recordToken(String expression, LinkedHashSet<Token> set, int left_index, int right_index, ArrayList<Token> tokens) {
         final Token token = set.getFirst();
         if (token.getClass() == OperandType.class) {
             final String value = expression.substring(left_index, right_index);
@@ -63,7 +63,7 @@ public final class Lexer<T extends CustomInteger<T>> {
         }
     }
 
-    public ArrayList<Token> get_tokens(String expression) {
+    public ArrayList<Token> getTokens(String expression) {
         if (null == expression) {
             return new ArrayList<>();
         }
@@ -87,7 +87,7 @@ public final class Lexer<T extends CustomInteger<T>> {
             final LinkedHashSet<Token> next_set = new LinkedHashSet<>(set);
             next_set.retainAll(current_set);
             if (next_set.isEmpty()) {
-                record_token(expression, set, left_index, right_index, tokens);
+                recordToken(expression, set, left_index, right_index, tokens);
                 set = current_set;
                 left_index = right_index;
             } else {
@@ -95,7 +95,7 @@ public final class Lexer<T extends CustomInteger<T>> {
             }
             ++right_index;
         }
-        record_token(expression, set, left_index, right_index, tokens);
+        recordToken(expression, set, left_index, right_index, tokens);
         return tokens;
     }
 }

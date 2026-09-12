@@ -10,7 +10,7 @@ public enum Absolute implements Token {
     }
 
     @Override
-    public char get_type_code() {
+    public char getTypeCode() {
         return type_code;
     }
 

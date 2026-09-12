@@ -5,10 +5,10 @@ use std::fmt;
 /// Every token kind the lexer can produce and the parser consumes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<T: CustomInteger> {
-    /// A literal that fits a 32-bit int.
+    /// An integer literal, however large - `Rational<T>`'s `T` is already
+    /// arbitrary-precision, so unlike Java there's no separate "large
+    /// integer" case to carry an unboxed vs. boxed distinction.
     Integer(T),
-    /// A literal too big for a 32-bit int.
-    LargeInteger(T),
     /// A decimal or repeating-decimal literal.
     Rational(Rational<T>),
     Plus,
@@ -33,7 +33,6 @@ impl<T: CustomInteger> fmt::Display for Token<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Integer(v) => write!(f, "INTEGER({})", v),
-            Token::LargeInteger(v) => write!(f, "LARGE_INTEGER({})", v),
             Token::Rational(r) => write!(f, "RATIONAL({})", r),
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),

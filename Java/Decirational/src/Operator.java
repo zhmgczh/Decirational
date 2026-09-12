@@ -9,7 +9,7 @@ public enum Operator implements Token {
     }
 
     @Override
-    public char get_type_code() {
+    public char getTypeCode() {
         return operator_code;
     }
 

@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.function.IntFunction;
 
 public final class Parser<T extends CustomInteger<T>> {
-    // parse_unary is the one point every recursive production in this
+    // parseUnary is the one point every recursive production in this
     // grammar passes through at least once per level of nesting: directly
-    // for a chain of unary +/- (parse_unary calling itself), for bracket/
+    // for a chain of unary +/- (parseUnary calling itself), for bracket/
     // floor/absolute-value nesting (via the expression->term->unary->power
     // ->primary chain that runs once per level before the next '(', '[' or
-    // '|'), and for right-associative '^' chains (parse_power calling
-    // parse_unary for its exponent, which can lead straight back into
-    // parse_power). Java's call stack has no bound of its own worth relying
+    // '|'), and for right-associative '^' chains (parsePower calling
+    // parseUnary for its exponent, which can lead straight back into
+    // parsePower). Java's call stack has no bound of its own worth relying
     // on - a deeply nested or chained expression overflows it with an
     // uncatchable StackOverflowError (an Error, not a RuntimeException, so
     // the REPL's catch block never sees it and the whole process dies) well
@@ -35,7 +35,7 @@ public final class Parser<T extends CustomInteger<T>> {
         this.tokens = tokens;
         this.position = 0;
         this.depth = 0;
-        final Rational<T> result = parse_expression();
+        final Rational<T> result = parseExpression();
         if (position != tokens.size()) {
             throw new IllegalArgumentException("unexpected token: " + tokens.get(position));
         }
@@ -63,25 +63,25 @@ public final class Parser<T extends CustomInteger<T>> {
         ++position;
     }
 
-    private Rational<T> parse_expression() {
-        Rational<T> result = parse_term();
+    private Rational<T> parseExpression() {
+        Rational<T> result = parseTerm();
         while (check(Operator.PLUS) || check(Operator.MINUS)) {
             final Operator operator = (Operator) advance();
-            final Rational<T> right = parse_term();
+            final Rational<T> right = parseTerm();
             result = Operator.PLUS == operator ? result.plus(right) : result.minus(right);
         }
         return result;
     }
 
-    private Rational<T> parse_term() {
-        Rational<T> result = parse_unary();
+    private Rational<T> parseTerm() {
+        Rational<T> result = parseUnary();
         while (check(Operator.MULTIPLICATION) || check(Operator.DIVISION) || check(Operator.INTEGER_DIVISION) || check(Operator.MODULO)) {
             final Operator operator = (Operator) advance();
-            final Rational<T> right = parse_unary();
+            final Rational<T> right = parseUnary();
             result = switch (operator) {
                 case MULTIPLICATION -> result.multiply(right);
-                case DIVISION -> result.divide_by(right);
-                case INTEGER_DIVISION -> integer_divide(result, right);
+                case DIVISION -> result.divideBy(right);
+                case INTEGER_DIVISION -> integerDivide(result, right);
                 case MODULO -> modulo(result, right);
                 default -> throw new IllegalStateException("unexpected operator: " + operator);
             };
@@ -89,21 +89,21 @@ public final class Parser<T extends CustomInteger<T>> {
         return result;
     }
 
-    private Rational<T> integer_divide(final Rational<T> a, final Rational<T> b) {
-        if (!a.is_integer() || !b.is_integer()) {
+    private Rational<T> integerDivide(final Rational<T> a, final Rational<T> b) {
+        if (!a.isInteger() || !b.isInteger()) {
             throw new IllegalArgumentException("integer division is only supported between integers");
         }
-        return new Rational<>(a.get_numerator().divide_by(b.get_numerator()));
+        return new Rational<>(a.getNumerator().divideBy(b.getNumerator()));
     }
 
     private Rational<T> modulo(final Rational<T> a, final Rational<T> b) {
-        if (!a.is_integer() || !b.is_integer()) {
+        if (!a.isInteger() || !b.isInteger()) {
             throw new IllegalArgumentException("modulo is only supported between integers");
         }
-        return new Rational<>(a.get_numerator().modulo(b.get_numerator()));
+        return new Rational<>(a.getNumerator().modulo(b.getNumerator()));
     }
 
-    private Rational<T> parse_unary() {
+    private Rational<T> parseUnary() {
         ++depth;
         try {
             if (depth > MAX_EXPRESSION_DEPTH) {
@@ -111,72 +111,72 @@ public final class Parser<T extends CustomInteger<T>> {
             }
             if (check(Operator.PLUS)) {
                 advance();
-                return parse_unary();
+                return parseUnary();
             }
             if (check(Operator.MINUS)) {
                 advance();
-                return parse_unary().negate();
+                return parseUnary().negate();
             }
-            return parse_power();
+            return parsePower();
         } finally {
             --depth;
         }
     }
 
-    private Rational<T> parse_power() {
-        final Rational<T> base = parse_primary();
+    private Rational<T> parsePower() {
+        final Rational<T> base = parsePrimary();
         if (check(Operator.POWER)) {
             advance();
-            final Rational<T> exponent = parse_unary();
-            return base.pow(to_int_exponent(exponent));
+            final Rational<T> exponent = parseUnary();
+            return base.pow(toIntExponent(exponent));
         }
         return base;
     }
 
-    private int to_int_exponent(final Rational<T> exponent) {
-        if (!exponent.is_integer()) {
+    private int toIntExponent(final Rational<T> exponent) {
+        if (!exponent.isInteger()) {
             throw new IllegalArgumentException("exponent must be an integer: " + exponent);
         }
         try {
-            return Integer.parseInt(exponent.get_numerator().toString());
+            return Integer.parseInt(exponent.getNumerator().toString());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("exponent out of range: " + exponent, e);
         }
     }
 
-    private Rational<T> parse_primary() {
+    private Rational<T> parsePrimary() {
         final Token token = peek();
         if (null == token) {
             throw new IllegalArgumentException("unexpected end of input");
         }
         if (token instanceof Operand operand) {
             advance();
-            return to_rational(operand);
+            return toRational(operand);
         }
         if (token == Parenthesis.LEFT_PARENTHESIS) {
             advance();
-            final Rational<T> result = parse_expression();
+            final Rational<T> result = parseExpression();
             expect(Parenthesis.RIGHT_PARENTHESIS);
             return result;
         }
         if (token == Floor.LEFT_FLOOR) {
             advance();
-            final Rational<T> result = parse_expression();
+            final Rational<T> result = parseExpression();
             expect(Floor.RIGHT_FLOOR);
             return new Rational<>(floor(result));
         }
         if (token == Absolute.ABSOLUTE) {
             advance();
-            final Rational<T> result = parse_expression();
+            final Rational<T> result = parseExpression();
             expect(Absolute.ABSOLUTE);
             return result.abs();
         }
         throw new IllegalArgumentException("unexpected token: " + token);
     }
 
-    private Rational<T> to_rational(final Operand operand) {
-        final Object value = operand.get_value();
-        return switch (operand.get_operand_type()) {
+    private Rational<T> toRational(final Operand operand) {
+        final Object value = operand.getValue();
+        return switch (operand.getOperandType()) {
             case RATIONAL -> {
                 @SuppressWarnings("unchecked") final Rational<T> rational = (Rational<T>) value;
                 yield rational;
@@ -190,13 +190,13 @@ public final class Parser<T extends CustomInteger<T>> {
     }
 
     private T floor(final Rational<T> rational) {
-        final T numerator = rational.get_numerator();
-        if (rational.is_integer()) {
+        final T numerator = rational.getNumerator();
+        if (rational.isInteger()) {
             return numerator;
         }
-        final T denominator = rational.get_denominator();
-        final T quotient = numerator.divide_by_and_modulo(denominator)[0];
-        if (numerator.is_negative()) {
+        final T denominator = rational.getDenominator();
+        final T quotient = numerator.divideByAndModulo(denominator)[0];
+        if (numerator.isNegative()) {
             return quotient.minus(denominator.pow(0));
         }
         return quotient;

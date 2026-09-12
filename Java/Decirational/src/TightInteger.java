@@ -10,7 +10,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     public static final TightInteger ONE = new TightInteger(1);
     private static final TightInteger[] numbers = new TightInteger[]{ZERO, ONE};
 
-    public static TightInteger get_digit(int index) {
+    public static TightInteger getDigit(int index) {
         if (index < 0 || index > 1) {
             throw new IllegalArgumentException("the index must be either 0 or 1");
         }
@@ -56,7 +56,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     public TightInteger(final int number) {
-        final long b = Arithmetic.reverse_negative(number);
+        final long b = Arithmetic.reverseNegative(number);
         final int[] integer = new int[1];
         integer[0] = (int) b;
         this.integer = integer;
@@ -68,7 +68,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     public TightInteger(final DecimalInteger decimal_integer) {
-        this(decimal_integer.to_tight_integer());
+        this(decimal_integer.toTightInteger());
     }
 
     public TightInteger(final String number) {
@@ -77,38 +77,38 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public String toString() {
-        return to_decimal_integer().toString();
+        return toDecimalInteger().toString();
     }
 
-    public DecimalInteger to_decimal_integer() {
+    public DecimalInteger toDecimalInteger() {
         int decimal_length = (int) (integer.length * Arithmetic.tight_to_decimal_length_ratio + 1) + 1;
         byte[] digits = new byte[decimal_length];
-        Arithmetic.convert_tight_to_decimal(digits, integer);
+        Arithmetic.convertTightToDecimal(digits, integer);
         return new DecimalInteger(digits, negative);
     }
 
     @Override
-    public boolean is_zero() {
+    public boolean isZero() {
         return 1 == integer.length && 0 == integer[0];
     }
 
     @Override
-    public boolean is_one() {
+    public boolean isOne() {
         return !negative && 1 == integer.length && 1 == integer[0];
     }
 
     @Override
-    public boolean is_unit_abs() {
+    public boolean isUnitAbs() {
         return 1 == integer.length && 1 == integer[0];
     }
 
     @Override
-    public boolean is_positive() {
-        return !negative && !is_zero();
+    public boolean isPositive() {
+        return !negative && !isZero();
     }
 
     @Override
-    public boolean is_negative() {
+    public boolean isNegative() {
         return negative;
     }
 
@@ -157,7 +157,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         return Objects.hash(negative, Arrays.hashCode(integer));
     }
 
-    private TightInteger plus_raw(TightInteger other) {
+    private TightInteger plusRaw(TightInteger other) {
         final int[] integer = Arithmetic.expand(this.integer, Math.max(this.integer.length, other.integer.length) + 1);
         Arithmetic.add(integer, other.integer);
         return new TightInteger(integer, negative, true);
@@ -165,19 +165,19 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger plus(final TightInteger other) {
-        if (is_zero()) {
+        if (isZero()) {
             return other;
         }
-        if (other.is_zero()) {
+        if (other.isZero()) {
             return this;
         }
         if (negative != other.negative) {
-            return minus_raw(other.negate());
+            return minusRaw(other.negate());
         }
-        return plus_raw(other);
+        return plusRaw(other);
     }
 
-    private TightInteger minus_raw(TightInteger other) {
+    private TightInteger minusRaw(TightInteger other) {
         final int compare_to = abs().compareTo(other.abs());
         final TightInteger a, b;
         boolean negative = this.negative;
@@ -198,32 +198,32 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger minus(final TightInteger other) {
-        if (is_zero()) {
+        if (isZero()) {
             return other.negate();
         }
-        if (other.is_zero()) {
+        if (other.isZero()) {
             return this;
         }
         if (negative != other.negative) {
-            return plus_raw(other.negate());
+            return plusRaw(other.negate());
         }
-        return minus_raw(other);
+        return minusRaw(other);
     }
 
     @Override
     public TightInteger multiply(final TightInteger other) {
-        if (is_zero() || other.is_zero()) {
+        if (isZero() || other.isZero()) {
             return ZERO;
         }
-        if (is_unit_abs()) {
-            if (is_positive()) {
+        if (isUnitAbs()) {
+            if (isPositive()) {
                 return other;
             } else {
                 return other.negate();
             }
         }
-        if (other.is_unit_abs()) {
-            if (other.is_positive()) {
+        if (other.isUnitAbs()) {
+            if (other.isPositive()) {
                 return this;
             } else {
                 return negate();
@@ -235,12 +235,12 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     @Override
-    public TightInteger multiply_base(final int times) {
+    public TightInteger multiplyBase(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("multiplication times cannot be negative");
         } else if (0 == times) {
             return this;
-        } else if (is_zero()) {
+        } else if (isZero()) {
             return ZERO;
         }
         final int[] integer = new int[this.integer.length + times];
@@ -249,17 +249,17 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     @Override
-    public TightInteger multiply_base() {
-        return multiply_base(1);
+    public TightInteger multiplyBase() {
+        return multiplyBase(1);
     }
 
     @Override
-    public TightInteger divide_by_base(final int times) {
+    public TightInteger divideByBase(final int times) {
         if (times < 0) {
             throw new IllegalArgumentException("division times cannot be negative");
         } else if (0 == times) {
             return this;
-        } else if (is_zero() || times >= this.integer.length) {
+        } else if (isZero() || times >= this.integer.length) {
             return ZERO;
         }
         final int[] integer = new int[this.integer.length - times];
@@ -268,20 +268,20 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     @Override
-    public TightInteger divide_by_base() {
-        return divide_by_base(1);
+    public TightInteger divideByBase() {
+        return divideByBase(1);
     }
 
     @Override
-    public TightInteger divide_by(final TightInteger other) {
-        if (other.is_zero()) {
+    public TightInteger divideBy(final TightInteger other) {
+        if (other.isZero()) {
             throw new ArithmeticException("cannot divide by zero");
         }
-        if (is_zero()) {
+        if (isZero()) {
             return ZERO;
         }
-        if (other.is_unit_abs()) {
-            if (other.is_positive()) {
+        if (other.isUnitAbs()) {
+            if (other.isPositive()) {
                 return this;
             } else {
                 return negate();
@@ -294,10 +294,10 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger modulo(final TightInteger other) {
-        if (other.is_zero()) {
+        if (other.isZero()) {
             throw new ArithmeticException("cannot divide by zero");
         }
-        if (is_zero() || other.is_unit_abs()) {
+        if (isZero() || other.isUnitAbs()) {
             return ZERO;
         }
         final int[] integer = new int[other.integer.length];
@@ -306,15 +306,15 @@ public final class TightInteger implements CustomInteger<TightInteger> {
     }
 
     @Override
-    public TightInteger[] divide_by_and_modulo(final TightInteger other) {
-        if (other.is_zero()) {
+    public TightInteger[] divideByAndModulo(final TightInteger other) {
+        if (other.isZero()) {
             throw new ArithmeticException("cannot divide by zero");
         }
-        if (is_zero()) {
+        if (isZero()) {
             return new TightInteger[]{ZERO, ZERO};
         }
-        if (other.is_unit_abs()) {
-            if (other.is_positive()) {
+        if (other.isUnitAbs()) {
+            if (other.isPositive()) {
                 return new TightInteger[]{this, ZERO};
             } else {
                 return new TightInteger[]{negate(), ZERO};
@@ -322,7 +322,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
         }
         final int[] quotient_integer = new int[integer.length];
         final int[] remainder_integer = new int[other.integer.length];
-        Arithmetic.divide_and_modulo(quotient_integer, remainder_integer, integer, other.integer);
+        Arithmetic.divideAndModulo(quotient_integer, remainder_integer, integer, other.integer);
         final TightInteger quotient = new TightInteger(quotient_integer, negative != other.negative, true);
         final TightInteger remainder = new TightInteger(remainder_integer, negative, true);
         return new TightInteger[]{quotient, remainder};
@@ -330,13 +330,13 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger gcd(final TightInteger other) {
-        if (is_zero()) {
+        if (isZero()) {
             return other.abs();
         }
-        if (other.is_zero()) {
+        if (other.isZero()) {
             return abs();
         }
-        if (is_unit_abs() || other.is_unit_abs()) {
+        if (isUnitAbs() || other.isUnitAbs()) {
             return ONE;
         }
         final int[] integer = new int[Math.min(this.integer.length, other.integer.length)];
@@ -346,7 +346,7 @@ public final class TightInteger implements CustomInteger<TightInteger> {
 
     @Override
     public TightInteger lcm(final TightInteger other) {
-        return divide_by(gcd(other)).multiply(other);
+        return divideBy(gcd(other)).multiply(other);
     }
 
     @Override

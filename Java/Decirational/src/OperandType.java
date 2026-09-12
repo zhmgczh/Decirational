@@ -13,7 +13,7 @@ public enum OperandType implements Token {
     }
 
     @Override
-    public char get_type_code() {
+    public char getTypeCode() {
         return operand_code;
     }
 

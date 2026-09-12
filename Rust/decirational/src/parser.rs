@@ -158,7 +158,7 @@ impl<T: CustomInteger> Parser<T> {
             Some(t) => t.clone(),
         };
         match tok {
-            Token::Integer(v) | Token::LargeInteger(v) => {
+            Token::Integer(v) => {
                 self.pos += 1;
                 Ok(Rational::from_integer(v))
             }

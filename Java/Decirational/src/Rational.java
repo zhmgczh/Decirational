@@ -8,27 +8,27 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     private final T numerator;
     private final T denominator;
 
-    public T get_numerator() {
+    public T getNumerator() {
         return numerator;
     }
 
-    public T get_denominator() {
+    public T getDenominator() {
         return denominator;
     }
 
-    private Rational<T> get_one() {
+    private Rational<T> getOne() {
         final T one = denominator.pow(0);
         return new Rational<>(one, one, true, true, true);
     }
 
-    private T get_five() {
+    private T getFive() {
         final T one = denominator.pow(0);
         final T two = one.plus(one);
         final T four = two.plus(two);
         return four.plus(one);
     }
 
-    private T get_ten() {
+    private T getTen() {
         final T one = denominator.pow(0);
         final T two = one.plus(one);
         final T four = two.plus(two);
@@ -39,30 +39,30 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         if (null == numerator || null == denominator) {
             throw new NullPointerException("numerator and denominator cannot be null");
         }
-        if (denominator.is_zero()) {
+        if (denominator.isZero()) {
             throw new IllegalArgumentException("denominator cannot be zero");
         }
         final T gcd = numerator.gcd(denominator);
-        if (denominator.is_negative()) {
+        if (denominator.isNegative()) {
             numerator = numerator.negate();
             denominator = denominator.negate();
         }
-        this.numerator = numerator.divide_by(gcd);
-        this.denominator = denominator.divide_by(gcd);
+        this.numerator = numerator.divideBy(gcd);
+        this.denominator = denominator.divideBy(gcd);
     }
 
     private Rational(T numerator, T denominator, final boolean input_unsafe) {
         final T gcd = numerator.gcd(denominator);
-        if (denominator.is_negative()) {
+        if (denominator.isNegative()) {
             numerator = numerator.negate();
             denominator = denominator.negate();
         }
-        this.numerator = numerator.divide_by(gcd);
-        this.denominator = denominator.divide_by(gcd);
+        this.numerator = numerator.divideBy(gcd);
+        this.denominator = denominator.divideBy(gcd);
     }
 
     private Rational(T numerator, T denominator, final boolean input_unsafe, final boolean gcd_unsafe) {
-        if (denominator.is_negative()) {
+        if (denominator.isNegative()) {
             numerator = numerator.negate();
             denominator = denominator.negate();
         }
@@ -109,13 +109,13 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         }
         boolean negative = false;
         int starting_point = 0;
-        if (Arithmetic.is_minus(string.charAt(0))) {
+        if (Arithmetic.isMinus(string.charAt(0))) {
             negative = true;
             starting_point = 1;
-        } else if (Arithmetic.is_plus(string.charAt(0))) {
+        } else if (Arithmetic.isPlus(string.charAt(0))) {
             starting_point = 1;
         }
-        if (starting_point >= string.length() || !Arithmetic.is_digit(string.charAt(starting_point))) {
+        if (starting_point >= string.length() || !Arithmetic.isDigit(string.charAt(starting_point))) {
             throw new NumberFormatException("the rational string does not have the right format");
         }
         int fraction_bar = -1;
@@ -123,27 +123,27 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         int cyclic_begin = -1;
         int cyclic_end = -1;
         for (int i = starting_point + 1; i < string.length(); ++i) {
-            if (Arithmetic.is_fraction_bar(string.charAt(i))) {
+            if (Arithmetic.isFractionBar(string.charAt(i))) {
                 if (-1 != fraction_bar || -1 != decimal_point) {
                     throw new NumberFormatException("the rational string does not have the right format");
                 }
                 fraction_bar = i;
-            } else if (Arithmetic.is_decimal_point(string.charAt(i))) {
+            } else if (Arithmetic.isDecimalPoint(string.charAt(i))) {
                 if (-1 != decimal_point || -1 != fraction_bar || i == string.length() - 1) {
                     throw new NumberFormatException("the rational string does not have the right format");
                 }
                 decimal_point = i;
-            } else if (Arithmetic.is_cyclic_begin(string.charAt(i))) {
+            } else if (Arithmetic.isCyclicBegin(string.charAt(i))) {
                 if (-1 != cyclic_begin || -1 == decimal_point) {
                     throw new NumberFormatException("the rational string does not have the right format");
                 }
                 cyclic_begin = i;
-            } else if (Arithmetic.is_cyclic_end(string.charAt(i))) {
+            } else if (Arithmetic.isCyclicEnd(string.charAt(i))) {
                 if (-1 == cyclic_begin || -1 != cyclic_end || i != string.length() - 1 || 1 == i - cyclic_begin) {
                     throw new NumberFormatException("the rational string does not have the right format");
                 }
                 cyclic_end = i;
-            } else if (!Arithmetic.is_digit(string.charAt(i))) {
+            } else if (!Arithmetic.isDigit(string.charAt(i))) {
                 throw new NumberFormatException("the rational string does not have the right format");
             }
         }
@@ -166,15 +166,15 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("cannot instantiate a rational from the given integer type", e);
             }
-            if (denominator.is_zero()) {
+            if (denominator.isZero()) {
                 throw new IllegalArgumentException("denominator cannot be zero");
             }
             final T gcd = numerator.gcd(denominator);
             if (negative) {
                 numerator = numerator.negate();
             }
-            this.numerator = numerator.divide_by(gcd);
-            this.denominator = denominator.divide_by(gcd);
+            this.numerator = numerator.divideBy(gcd);
+            this.denominator = denominator.divideBy(gcd);
         } else if (-1 == cyclic_begin) {
             final String numerator_string = string.substring(starting_point, decimal_point) + string.substring(decimal_point + 1);
             final String denominator_string = "1" + "0".repeat(string.length() - decimal_point - 1);
@@ -190,8 +190,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             if (negative) {
                 numerator = numerator.negate();
             }
-            this.numerator = numerator.divide_by(gcd);
-            this.denominator = denominator.divide_by(gcd);
+            this.numerator = numerator.divideBy(gcd);
+            this.denominator = denominator.divideBy(gcd);
         } else if (-1 != cyclic_end) {
             final String finite_numerator_string = string.substring(starting_point, decimal_point) + string.substring(decimal_point + 1, cyclic_begin);
             final String finite_denominator_string = "1" + "0".repeat(cyclic_begin - decimal_point - 1);
@@ -224,47 +224,47 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     @Override
     public String toString() {
-        if (denominator.is_one()) {
+        if (denominator.isOne()) {
             return numerator.toString();
         }
-        return to_fraction_string();
+        return toFractionString();
     }
 
-    public String to_fraction_string() {
+    public String toFractionString() {
         return numerator + "/" + denominator;
     }
 
-    public String to_mixed_string() {
-        if (denominator.is_one()) {
+    public String toMixedString() {
+        if (denominator.isOne()) {
             return numerator.toString();
         }
-        final T[] whole_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
+        final T[] whole_and_remainder = numerator.abs().divideByAndModulo(denominator);
         final T whole = whole_and_remainder[0];
         final T remainder = whole_and_remainder[1];
         final StringBuilder sb = new StringBuilder();
-        if (numerator.is_negative()) {
+        if (numerator.isNegative()) {
             sb.append('-');
         }
-        if (!whole.is_zero()) {
+        if (!whole.isZero()) {
             sb.append(whole).append(' ');
         }
         sb.append(remainder).append('/').append(denominator);
         return sb.toString();
     }
 
-    public String to_decimal_string() {
-        final T ten = get_ten();
-        T[] integer_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
+    public String toDecimalString() {
+        final T ten = getTen();
+        T[] integer_and_remainder = numerator.abs().divideByAndModulo(denominator);
         final T whole_integer = integer_and_remainder[0];
         T remainder = integer_and_remainder[1];
         final StringBuilder decimal = new StringBuilder();
-        decimal.append(numerator.is_negative() ? '-' : "").append(whole_integer).append(remainder.is_zero() ? "" : '.');
+        decimal.append(numerator.isNegative() ? '-' : "").append(whole_integer).append(remainder.isZero() ? "" : '.');
         final HashMap<T, Integer> remainder_map = new HashMap<>();
         remainder_map.put(remainder, decimal.length());
         int starting_cyclic = -1;
-        while (!remainder.is_zero() && -1 == starting_cyclic) {
+        while (!remainder.isZero() && -1 == starting_cyclic) {
             remainder = remainder.multiply(ten);
-            integer_and_remainder = remainder.divide_by_and_modulo(denominator);
+            integer_and_remainder = remainder.divideByAndModulo(denominator);
             final T integer = integer_and_remainder[0];
             remainder = integer_and_remainder[1];
             decimal.append(integer.toString().charAt(0));
@@ -280,30 +280,30 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return decimal.toString();
     }
 
-    public String to_truncate_decimal_string(final int round_to) {
-        final T ten = get_ten();
-        T[] integer_and_remainder = numerator.abs().divide_by_and_modulo(denominator);
+    public String toTruncateDecimalString(final int round_to) {
+        final T ten = getTen();
+        T[] integer_and_remainder = numerator.abs().divideByAndModulo(denominator);
         final T whole_integer = integer_and_remainder[0];
         final String whole_integer_string = whole_integer.toString();
         if (whole_integer_string.length() <= -round_to) {
-            return (numerator.is_negative() ? '-' : "") + "0";
+            return (numerator.isNegative() ? '-' : "") + "0";
         } else if (round_to < 0) {
             if (Integer.MIN_VALUE == round_to) {
                 throw new IllegalArgumentException("cannot round to the minimum representable precision");
             }
             final T shift_base = ten.pow(-round_to);
-            final T result = whole_integer.divide_by(shift_base).multiply(shift_base);
-            return (numerator.is_negative() ? '-' : "") + result.toString();
+            final T result = whole_integer.divideBy(shift_base).multiply(shift_base);
+            return (numerator.isNegative() ? '-' : "") + result.toString();
         } else if (0 == round_to) {
-            return (numerator.is_negative() ? '-' : "") + whole_integer_string;
+            return (numerator.isNegative() ? '-' : "") + whole_integer_string;
         }
         T remainder = integer_and_remainder[1];
         final StringBuilder decimal = new StringBuilder();
-        decimal.append(numerator.is_negative() ? '-' : "").append(whole_integer_string).append(remainder.is_zero() ? "" : '.');
+        decimal.append(numerator.isNegative() ? '-' : "").append(whole_integer_string).append(remainder.isZero() ? "" : '.');
         int index = 0;
-        while (index < round_to && !remainder.is_zero()) {
+        while (index < round_to && !remainder.isZero()) {
             remainder = remainder.multiply(ten);
-            integer_and_remainder = remainder.divide_by_and_modulo(denominator);
+            integer_and_remainder = remainder.divideByAndModulo(denominator);
             final T integer = integer_and_remainder[0];
             remainder = integer_and_remainder[1];
             decimal.append(integer.toString().charAt(0));
@@ -312,55 +312,55 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return decimal.toString();
     }
 
-    public String to_round_decimal_string(final int round_to) {
+    public String toRoundDecimalString(final int round_to) {
         if (Integer.MIN_VALUE == round_to) {
             throw new IllegalArgumentException("cannot round to the minimum representable precision");
         }
-        final Rational<T> five = new Rational<>(get_five(), true);
-        final Rational<T> ten = new Rational<>(get_ten(), true);
+        final Rational<T> five = new Rational<>(getFive(), true);
+        final Rational<T> ten = new Rational<>(getTen(), true);
         final Rational<T> shift_base = ten.pow(-round_to - 1);
         final Rational<T> delta = five.multiply(shift_base);
-        final Rational<T> temp_rational = is_negative() ? minus(delta) : plus(delta);
-        return temp_rational.to_truncate_decimal_string(round_to);
+        final Rational<T> temp_rational = isNegative() ? minus(delta) : plus(delta);
+        return temp_rational.toTruncateDecimalString(round_to);
     }
 
-    public String to_ceil_decimal_string(final int round_to) {
-        if (is_negative()) {
-            return '-' + negate().to_floor_decimal_string(round_to);
+    public String toCeilDecimalString(final int round_to) {
+        if (isNegative()) {
+            return '-' + negate().toFloorDecimalString(round_to);
         }
         if (Integer.MIN_VALUE == round_to) {
             throw new IllegalArgumentException("cannot round to the minimum representable precision");
         }
-        final Rational<T> ten = new Rational<>(get_ten(), true);
-        if (multiply(ten.pow(round_to)).is_integer()) {
-            return to_truncate_decimal_string(round_to);
+        final Rational<T> ten = new Rational<>(getTen(), true);
+        if (multiply(ten.pow(round_to)).isInteger()) {
+            return toTruncateDecimalString(round_to);
         }
         final Rational<T> shift_base = ten.pow(-round_to);
         final Rational<T> temp_rational = plus(shift_base);
-        return temp_rational.to_truncate_decimal_string(round_to);
+        return temp_rational.toTruncateDecimalString(round_to);
     }
 
-    public String to_floor_decimal_string(final int round_to) {
-        if (is_negative()) {
-            return '-' + negate().to_ceil_decimal_string(round_to);
+    public String toFloorDecimalString(final int round_to) {
+        if (isNegative()) {
+            return '-' + negate().toCeilDecimalString(round_to);
         }
-        return to_truncate_decimal_string(round_to);
+        return toTruncateDecimalString(round_to);
     }
 
-    public boolean is_integer() {
-        return denominator.is_one();
+    public boolean isInteger() {
+        return denominator.isOne();
     }
 
-    public boolean is_zero() {
-        return numerator.is_zero();
+    public boolean isZero() {
+        return numerator.isZero();
     }
 
-    public boolean is_positive() {
-        return numerator.is_positive();
+    public boolean isPositive() {
+        return numerator.isPositive();
     }
 
-    public boolean is_negative() {
-        return numerator.is_negative();
+    public boolean isNegative() {
+        return numerator.isNegative();
     }
 
     public Rational<T> negate() {
@@ -372,7 +372,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     }
 
     public Rational<T> reciprocal() {
-        if (is_zero()) {
+        if (isZero()) {
             throw new ArithmeticException("cannot get the reciprocal of zero");
         }
         return new Rational<>(denominator, numerator, true, true);
@@ -382,18 +382,18 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
         return new Rational<>(denominator, numerator, true, true);
     }
 
-    public T get_numerator_abs() {
+    public T getNumeratorAbs() {
         return numerator.abs();
     }
 
-    public T get_denominator_abs() {
+    public T getDenominatorAbs() {
         return denominator.abs();
     }
 
     @Override
     public int compareTo(final Rational<T> other) {
         final T gcd = denominator.gcd(other.denominator);
-        return numerator.multiply(other.denominator.divide_by(gcd)).compareTo(other.numerator.multiply(denominator.divide_by(gcd)));
+        return numerator.multiply(other.denominator.divideBy(gcd)).compareTo(other.numerator.multiply(denominator.divideBy(gcd)));
     }
 
     @Override
@@ -411,8 +411,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational<T> plus(final Rational<T> other) {
         final T gcd = this.denominator.gcd(other.denominator);
-        final T multiplier_1 = other.denominator.divide_by(gcd);
-        final T multiplier_2 = this.denominator.divide_by(gcd);
+        final T multiplier_1 = other.denominator.divideBy(gcd);
+        final T multiplier_2 = this.denominator.divideBy(gcd);
         final T numerator = this.numerator.multiply(multiplier_1).plus(other.numerator.multiply(multiplier_2));
         final T denominator = gcd.multiply(multiplier_1).multiply(multiplier_2);
         return new Rational<>(numerator, denominator, true);
@@ -420,8 +420,8 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational<T> minus(final Rational<T> other) {
         final T gcd = this.denominator.gcd(other.denominator);
-        final T multiplier_1 = other.denominator.divide_by(gcd);
-        final T multiplier_2 = this.denominator.divide_by(gcd);
+        final T multiplier_1 = other.denominator.divideBy(gcd);
+        final T multiplier_2 = this.denominator.divideBy(gcd);
         final T numerator = this.numerator.multiply(multiplier_1).minus(other.numerator.multiply(multiplier_2));
         final T denominator = gcd.multiply(multiplier_1).multiply(multiplier_2);
         return new Rational<>(numerator, denominator, true);
@@ -430,13 +430,13 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
     public Rational<T> multiply(final Rational<T> other) {
         final T gcd_1 = this.denominator.gcd(other.numerator);
         final T gcd_2 = other.denominator.gcd(this.numerator);
-        final T denominator = this.denominator.divide_by(gcd_1).multiply(other.denominator.divide_by(gcd_2));
-        final T numerator = this.numerator.divide_by(gcd_2).multiply(other.numerator.divide_by(gcd_1));
+        final T denominator = this.denominator.divideBy(gcd_1).multiply(other.denominator.divideBy(gcd_2));
+        final T numerator = this.numerator.divideBy(gcd_2).multiply(other.numerator.divideBy(gcd_1));
         return new Rational<>(numerator, denominator, true, true, true);
     }
 
-    public Rational<T> divide_by(final Rational<T> other) {
-        if (other.is_zero()) {
+    public Rational<T> divideBy(final Rational<T> other) {
+        if (other.isZero()) {
             throw new ArithmeticException("cannot divide by zero");
         }
         return multiply(other.reciprocal(true));
@@ -444,7 +444,7 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
 
     public Rational<T> pow(final int exponent) {
         if (exponent < 0) {
-            if (is_zero()) {
+            if (isZero()) {
                 throw new ArithmeticException("exponent cannot be negative for zero");
             }
             if (Integer.MIN_VALUE == exponent) {
@@ -452,11 +452,11 @@ public final class Rational<T extends CustomInteger<T>> implements Comparable<Ra
             }
             return reciprocal(true).pow(-exponent);
         } else if (0 == exponent) {
-            return get_one();
+            return getOne();
         } else if (1 == exponent) {
             return this;
         }
-        Rational<T> result = get_one();
+        Rational<T> result = getOne();
         Rational<T> base = this;
         int power = exponent;
         while (true) {
