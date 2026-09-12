@@ -13,7 +13,7 @@ To ensure maximum interoperability and performance flexibility, this project pro
 * **High Concurrency Ready**: Thread-safe, immutable architecture designed for lock-free read operations and high-throughput multi-threaded environments.
 * **Implementation Parity**: Strict functional and API consistency across Rust, Go, and Java — the three CLIs accept identical flags and produce byte-for-byte identical output for identical input.
 * **Zero Dependencies**: Utilizes native big-number abstractions or highly audited, lightweight implementations to maintain secure, high-performance execution.
-* **Thoroughly Tested**: 518 assertions in Java, 60 test functions in Go, and 65 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
+* **Thoroughly Tested**: 559 assertions in Java, 62 test functions in Go, and 68 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
 
 ## 🧮 The Calculator
 
@@ -118,7 +118,7 @@ $ echo '1/8' | decirational --format=round --precision=2 --rounding=half-even
 
 The Rust implementation lives under [`Rust/decirational`](Rust/decirational): a library crate (`decirational`) plus a `decirational` binary, with zero external dependencies. Fallible parsing/construction returns `Result<_, DError>` (Rust's idiomatic mechanism, unlike the unchecked exceptions Java throws or the panic/recover Go uses for the same cases); a handful of pure-arithmetic edge cases (dividing by zero, an absurd `--precision`) `panic!`, matching how Rust's own `/` operator behaves. `DecimalInteger`, `TightInteger`, and `Rational<T>` all implement the standard `std::ops` operators (`+ - * / % -`, in every value/reference combination — `a + b`, `&a + &b`, etc.) and `FromStr`, so `a + b` and `"1/3".parse()` work exactly as they would for any other Rust numeric type, on top of the `plus`/`minus`/`multiply`/`divide_by`/`modulo`/`negate` methods every port shares.
 
-65 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
+68 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
 
 #### Running it
 
@@ -224,9 +224,9 @@ See the header for the full function list (construction, `add`/`sub`/`mul`/`div`
 
 ### 🐹 Go
 
-The Go implementation lives under [`Go/Decirational`](Go/Decirational) as the importable package `decirational`, with its CLI in [`cmd/decirational`](Go/Decirational/cmd/decirational). It targets Go 1.23+ (for the `clear`/`min`/`max` builtins) and has zero external dependencies. Fallible parsing/construction returns `(_, error)`; mid-computation arithmetic failures (division by zero, matching Go's own `/` operator) panic and are recovered once at `Parser.Parse`, so callers only ever see a single `error`.
+The Go implementation lives under [`Go/Decirational`](Go/Decirational) as the importable package `decirational`, with its CLI in [`cmd/decirational`](Go/Decirational/cmd/decirational). It targets Go 1.23+ (matching `go.mod`; the `clear`/`min`/`max` builtins it relies on only require Go 1.21+) and has zero external dependencies. Fallible parsing/construction returns `(_, error)`; mid-computation arithmetic failures (division by zero, matching Go's own `/` operator) panic and are recovered once at `Parser.Parse`, so callers only ever see a single `error`.
 
-60 test functions live across [`*_test.go`](Go/Decirational) — `go test ./...` to run them.
+62 test functions live across [`*_test.go`](Go/Decirational) — `go test ./...` to run them.
 
 #### Running it
 
@@ -284,7 +284,7 @@ Core types: the generic `CustomInteger[T]` interface, implemented by `DecimalInt
 
 The Java implementation lives under [`Java/Decirational`](Java/Decirational). It targets JDK 21, has zero external dependencies, and every class (arbitrary-precision integers, rationals, lexer, parser) lives in a single `decirational` package — nothing to install beyond a JDK.
 
-518 assertions live across [`Java/Decirational/test`](Java/Decirational/test) (also in the `decirational` package, so they call the API directly with no imports needed) — run them via `javac -d out src/*.java test/*.java && java -cp out decirational.AllTests`.
+559 assertions live across [`Java/Decirational/test`](Java/Decirational/test) (also in the `decirational` package, so they call the API directly with no imports needed) — run them via `javac -d out src/*.java test/*.java && java -cp out decirational.AllTests`.
 
 #### Running it
 
