@@ -18,16 +18,17 @@
  *     until the next decirational_* call on the same thread.
  *   - char* results are heap-allocated by Rust and MUST be freed with
  *     decirational_string_free() - never with free() directly.
- *   - DecirationalRational* handles are opaque and MUST be freed with
- *     decirational_rational_free(). Passing NULL to either free function is
- *     a safe no-op.
- *   - A DecirationalRational is internally tagged with which integer
- *     backend built it (decimal vs. tight, chosen at construction time via
+ *   - DecirationalRational* and DecirationalInteger* handles are opaque and
+ *     MUST be freed with decirational_rational_free() /
+ *     decirational_integer_free() respectively. Passing NULL to any free
+ *     function is a safe no-op.
+ *   - Both handle types are internally tagged with which integer backend
+ *     built them (decimal vs. tight, chosen at construction time via
  *     integer_backend); combining two handles of different backends in one
  *     call is a normal (non-crashing) error, not undefined behavior.
- *   - This library is not async-signal-safe and each DecirationalRational*
- *     handle is not safe to share across threads without external
- *     synchronization; decirational_last_error() is thread-local.
+ *   - This library is not async-signal-safe and no handle is safe to share
+ *     across threads without external synchronization;
+ *     decirational_last_error() is thread-local.
  *
  * ---- Example ----
  *
@@ -72,6 +73,10 @@ extern "C" {
 
 /* Opaque handle to a Rational value. */
 typedef struct DecirationalRational DecirationalRational;
+
+/* Opaque handle to a DecimalInteger or TightInteger value (the same two
+ * CustomInteger backends a DecirationalRational is built on). */
+typedef struct DecirationalInteger DecirationalInteger;
 
 /* ---- errors, strings, misc ---- */
 
@@ -157,6 +162,98 @@ char *decirational_rational_to_string(const DecirationalRational *r, int32_t for
 char *decirational_rational_numerator_string(const DecirationalRational *r);
 /* The (always-reduced, always-positive) denominator, as a decimal string. */
 char *decirational_rational_denominator_string(const DecirationalRational *r);
+
+/* ---- integer construction / destruction ---- */
+
+/* Parses a (possibly signed) decimal integer literal ("12345", "-7", ...).
+ * Returns NULL on error. */
+DecirationalInteger *decirational_integer_parse(const char *literal, int32_t integer_backend);
+
+/* Builds an integer handle directly from a machine int64_t. */
+DecirationalInteger *decirational_integer_from_i64(int64_t value, int32_t integer_backend);
+
+/* Frees a handle returned by any decirational_integer_* function. NULL is a safe no-op. */
+void decirational_integer_free(DecirationalInteger *n);
+
+/* Returns a new, independent handle with the same value. */
+DecirationalInteger *decirational_integer_clone(const DecirationalInteger *n);
+
+/* ---- integer arithmetic (all return a new handle; operands are untouched) ---- */
+
+/* a + b */
+DecirationalInteger *decirational_integer_add(const DecirationalInteger *a, const DecirationalInteger *b);
+/* a - b */
+DecirationalInteger *decirational_integer_sub(const DecirationalInteger *a, const DecirationalInteger *b);
+/* a * b */
+DecirationalInteger *decirational_integer_mul(const DecirationalInteger *a, const DecirationalInteger *b);
+/* Truncating integer division a / b (the CLI's //). NULL if b is zero. */
+DecirationalInteger *decirational_integer_div(const DecirationalInteger *a, const DecirationalInteger *b);
+/* a % b. NULL if b is zero. */
+DecirationalInteger *decirational_integer_mod(const DecirationalInteger *a, const DecirationalInteger *b);
+/* The (always non-negative) greatest common divisor of a and b. */
+DecirationalInteger *decirational_integer_gcd(const DecirationalInteger *a, const DecirationalInteger *b);
+/* The least common multiple of a and b. NULL if both are zero. */
+DecirationalInteger *decirational_integer_lcm(const DecirationalInteger *a, const DecirationalInteger *b);
+
+/* Divides a by b, producing both the quotient and remainder in one pass.
+ * Returns 0 and sets the two out params to newly allocated handles on
+ * success; returns -1, sets both outputs to NULL, and records an error
+ * (check decirational_last_error()) if b is zero or the backends don't
+ * match. out_quotient and out_remainder must not be NULL. */
+int32_t decirational_integer_divmod(const DecirationalInteger *a, const DecirationalInteger *b,
+                                     DecirationalInteger **out_quotient, DecirationalInteger **out_remainder);
+
+/* Shifts n by `times` "digits" in its own base - decimal digits (n * 10^times)
+ * for a decimal-backed handle, base-2^32 words (n * (2^32)^times) for a
+ * tight-backed one. NULL if times is negative. */
+DecirationalInteger *decirational_integer_multiply_base(const DecirationalInteger *n, int32_t times);
+/* The inverse of decirational_integer_multiply_base: divides n by
+ * base^times, discarding the low `times` "digits". NULL if times is negative. */
+DecirationalInteger *decirational_integer_divide_by_base(const DecirationalInteger *n, int32_t times);
+/* n raised to the non-negative exponent. NULL if exponent is negative. */
+DecirationalInteger *decirational_integer_pow(const DecirationalInteger *n, int32_t exponent);
+/* -n */
+DecirationalInteger *decirational_integer_negate(const DecirationalInteger *n);
+/* |n| */
+DecirationalInteger *decirational_integer_abs(const DecirationalInteger *n);
+
+/* All integer arithmetic functions above require a and b (where both are
+ * taken) to share the same integer_backend; mixing backends returns NULL
+ * with decirational_last_error() explaining why. */
+
+/* ---- integer queries ---- */
+
+/* -1 / 0 / 1 as a < / == / > b. Returns INT32_MIN on error (null handle,
+ * mismatched backends) - check decirational_last_error() to tell that apart
+ * from a genuine result, which is never INT32_MIN. */
+int32_t decirational_integer_compare(const DecirationalInteger *a, const DecirationalInteger *b);
+
+/* 1 / 0 / -1 for true / false / error (check decirational_last_error()). */
+int32_t decirational_integer_is_zero(const DecirationalInteger *n);
+int32_t decirational_integer_is_one(const DecirationalInteger *n);
+int32_t decirational_integer_is_unit_abs(const DecirationalInteger *n); /* true for exactly 1 and -1 */
+int32_t decirational_integer_is_positive(const DecirationalInteger *n);
+int32_t decirational_integer_is_negative(const DecirationalInteger *n);
+
+/* ---- integer formatting ---- */
+
+/* Renders n as a decimal string. Free with decirational_string_free. */
+char *decirational_integer_to_string(const DecirationalInteger *n);
+
+/* ---- bridging integers and rationals ---- */
+
+/* Builds the fraction n/1 from an integer handle. */
+DecirationalRational *decirational_rational_from_integer(const DecirationalInteger *n);
+
+/* Builds a reduced, sign-normalized fraction numerator/denominator from two
+ * integer handles. NULL if denominator is zero or the two handles don't
+ * share the same backend. */
+DecirationalRational *decirational_rational_from_integers(const DecirationalInteger *numerator, const DecirationalInteger *denominator);
+
+/* The (always-reduced) numerator of r, as a new integer handle. */
+DecirationalInteger *decirational_rational_numerator(const DecirationalRational *r);
+/* The (always-reduced, always-positive) denominator of r, as a new integer handle. */
+DecirationalInteger *decirational_rational_denominator(const DecirationalRational *r);
 
 #ifdef __cplusplus
 }

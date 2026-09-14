@@ -168,6 +168,112 @@ int main(void) {
     decirational_rational_free(a);
     decirational_rational_free(b);
 
+    /* ---- integer handles ---- */
+    DecirationalInteger *six = decirational_integer_from_i64(6, DECIRATIONAL_BACKEND_DECIMAL);
+    DecirationalInteger *four = decirational_integer_from_i64(4, DECIRATIONAL_BACKEND_DECIMAL);
+
+    DecirationalInteger *isum = decirational_integer_add(six, four);
+    r = decirational_integer_to_string(isum);
+    check_str("6 + 4 (integer)", r, "10");
+    decirational_string_free(r);
+    decirational_integer_free(isum);
+
+    DecirationalInteger *gcd = decirational_integer_gcd(six, four);
+    r = decirational_integer_to_string(gcd);
+    check_str("gcd(6, 4)", r, "2");
+    decirational_string_free(r);
+    decirational_integer_free(gcd);
+
+    DecirationalInteger *lcm = decirational_integer_lcm(six, four);
+    r = decirational_integer_to_string(lcm);
+    check_str("lcm(6, 4)", r, "12");
+    decirational_string_free(r);
+    decirational_integer_free(lcm);
+
+    DecirationalInteger *quotient = NULL, *remainder = NULL;
+    int32_t divmod_status = decirational_integer_divmod(six, four, &quotient, &remainder);
+    check_int("divmod(6, 4) status", divmod_status, 0);
+    r = decirational_integer_to_string(quotient);
+    check_str("divmod(6, 4) quotient", r, "1");
+    decirational_string_free(r);
+    r = decirational_integer_to_string(remainder);
+    check_str("divmod(6, 4) remainder", r, "2");
+    decirational_string_free(r);
+    decirational_integer_free(quotient);
+    decirational_integer_free(remainder);
+
+    DecirationalInteger *izero = decirational_integer_from_i64(0, DECIRATIONAL_BACKEND_DECIMAL);
+    quotient = NULL;
+    remainder = NULL;
+    check_int("divmod(6, 0) status is an error", decirational_integer_divmod(six, izero, &quotient, &remainder), -1);
+    check_null("divmod(6, 0) leaves *out_quotient NULL", quotient);
+    check_null("divmod(6, 0) leaves *out_remainder NULL", remainder);
+
+    DecirationalInteger *neg_six = decirational_integer_negate(six);
+    r = decirational_integer_to_string(neg_six);
+    check_str("-6", r, "-6");
+    decirational_string_free(r);
+    check_int("-6 is_negative", decirational_integer_is_negative(neg_six), 1);
+    DecirationalInteger *abs_neg_six = decirational_integer_abs(neg_six);
+    check_int("|-6| == 6", decirational_integer_compare(abs_neg_six, six), 0);
+    decirational_integer_free(abs_neg_six);
+    decirational_integer_free(neg_six);
+
+    check_int("6 vs 4", decirational_integer_compare(six, four), 1);
+    check_int("4 vs 6", decirational_integer_compare(four, six), -1);
+    DecirationalInteger *six_clone = decirational_integer_clone(six);
+    check_int("6 vs clone(6)", decirational_integer_compare(six, six_clone), 0);
+    decirational_integer_free(six_clone);
+
+    check_int("6 is_zero", decirational_integer_is_zero(six), 0);
+    check_int("0 is_zero", decirational_integer_is_zero(izero), 1);
+    check_int("6 is_one", decirational_integer_is_one(six), 0);
+    DecirationalInteger *neg_one = decirational_integer_from_i64(-1, DECIRATIONAL_BACKEND_DECIMAL);
+    check_int("-1 is_unit_abs", decirational_integer_is_unit_abs(neg_one), 1);
+    decirational_integer_free(neg_one);
+
+    /* mismatched backends: a clear error, not UB */
+    DecirationalInteger *tight_four = decirational_integer_from_i64(4, DECIRATIONAL_BACKEND_TIGHT);
+    check_null("decimal + tight integer is rejected", decirational_integer_add(six, tight_four));
+    check_int("mismatched-backend integer compare returns INT32_MIN sentinel", decirational_integer_compare(six, tight_four), INT32_MIN);
+    decirational_integer_free(tight_four);
+
+    /* bridging: Rational <-> Integer round trip */
+    DecirationalRational *seven_fourths2 = decirational_rational_parse("7/4", DECIRATIONAL_BACKEND_DECIMAL);
+    DecirationalInteger *num = decirational_rational_numerator(seven_fourths2);
+    DecirationalInteger *den = decirational_rational_denominator(seven_fourths2);
+    r = decirational_integer_to_string(num);
+    check_str("7/4 numerator (integer handle)", r, "7");
+    decirational_string_free(r);
+    r = decirational_integer_to_string(den);
+    check_str("7/4 denominator (integer handle)", r, "4");
+    decirational_string_free(r);
+
+    DecirationalRational *rebuilt = decirational_rational_from_integers(num, den);
+    r = decirational_rational_to_string(rebuilt, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
+    check_str("rebuilt from numerator/denominator", r, "7/4");
+    decirational_string_free(r);
+    decirational_rational_free(rebuilt);
+
+    check_null("from_integers with zero denominator is an error", decirational_rational_from_integers(num, izero));
+
+    DecirationalRational *six_as_rational = decirational_rational_from_integer(six);
+    r = decirational_rational_to_string(six_as_rational, DECIRATIONAL_FORMAT_DEFAULT, 0, DECIRATIONAL_ROUNDING_HALF_UP);
+    check_str("from_integer(6)", r, "6");
+    decirational_string_free(r);
+    decirational_rational_free(six_as_rational);
+
+    decirational_integer_free(num);
+    decirational_integer_free(den);
+    decirational_rational_free(seven_fourths2);
+
+    check_null("integer_add(NULL, NULL) is an error, not a crash", decirational_integer_add(NULL, NULL));
+    check_int("integer_is_zero(NULL) is an error", decirational_integer_is_zero(NULL), -1);
+
+    decirational_integer_free(six);
+    decirational_integer_free(four);
+    decirational_integer_free(izero);
+
     printf("\n%d failure(s)\n", failures);
     return failures == 0 ? 0 : 1;
 }

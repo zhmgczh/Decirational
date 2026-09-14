@@ -13,7 +13,7 @@ To ensure maximum interoperability and performance flexibility, this project pro
 * **High Concurrency Ready**: Thread-safe, immutable architecture designed for lock-free read operations and high-throughput multi-threaded environments.
 * **Implementation Parity**: Strict functional and API consistency across Rust, Go, and Java — the three CLIs accept identical flags and produce byte-for-byte identical output for identical input.
 * **Zero Dependencies**: Utilizes native big-number abstractions or highly audited, lightweight implementations to maintain secure, high-performance execution.
-* **Thoroughly Tested**: 559 assertions in Java, 62 test functions in Go, and 68 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
+* **Thoroughly Tested**: 559 assertions in Java, 62 test functions in Go, and 72 in Rust, covering the same arithmetic edge cases, parsing rules, and error paths in every implementation.
 
 ## 🧮 The Calculator
 
@@ -118,7 +118,7 @@ $ echo '1/8' | decirational --format=round --precision=2 --rounding=half-even
 
 The Rust implementation lives under [`Rust/decirational`](Rust/decirational): a library crate (`decirational`) plus a `decirational` binary, with zero external dependencies. Fallible parsing/construction returns `Result<_, DError>` (Rust's idiomatic mechanism, unlike the unchecked exceptions Java throws or the panic/recover Go uses for the same cases); a handful of pure-arithmetic edge cases (dividing by zero, an absurd `--precision`) `panic!`, matching how Rust's own `/` operator behaves. `DecimalInteger`, `TightInteger`, and `Rational<T>` all implement the standard `std::ops` operators (`+ - * / % -`, in every value/reference combination — `a + b`, `&a + &b`, etc.) and `FromStr`, so `a + b` and `"1/3".parse()` work exactly as they would for any other Rust numeric type, on top of the `plus`/`minus`/`multiply`/`divide_by`/`modulo`/`negate` methods every port shares.
 
-68 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
+72 `#[test]` functions live in [`src/tests.rs`](Rust/decirational/src/tests.rs) and [`src/capi.rs`](Rust/decirational/src/capi.rs) — `cargo test` to run them (the C API additionally has its own from-C test, see below).
 
 #### Running it
 
@@ -173,7 +173,7 @@ Core types: the `CustomInteger` trait, implemented by `DecimalInteger` and `Tigh
 
 #### Calling the raw C API
 
-`Rust/decirational` also builds as a `cdylib`/`staticlib` (see `crate-type` in [`Cargo.toml`](Rust/decirational/Cargo.toml)) exposing a hand-written C ABI — [`src/capi.rs`](Rust/decirational/src/capi.rs), declared in [`capi/decirational.h`](Rust/decirational/capi/decirational.h) — for calling this from C, C++, or anything else that links against a C ABI (Python via `ctypes`/`cffi`, Ruby FFI, etc.), no Cargo required at the call site. It covers the whole calculator: evaluate an expression string in one call, or build/combine/format `Rational` values by hand through an opaque handle.
+`Rust/decirational` also builds as a `cdylib`/`staticlib` (see `crate-type` in [`Cargo.toml`](Rust/decirational/Cargo.toml)) exposing a hand-written C ABI — [`src/capi.rs`](Rust/decirational/src/capi.rs), declared in [`capi/decirational.h`](Rust/decirational/capi/decirational.h) — for calling this from C, C++, or anything else that links against a C ABI (Python via `ctypes`/`cffi`, Ruby FFI, etc.), no Cargo required at the call site. It covers the whole calculator: evaluate an expression string in one call, or build/combine/format `Rational` values by hand through an opaque handle — and, one level below that, the `DecimalInteger`/`TightInteger` backends themselves through a second opaque handle, for callers who want arbitrary-precision integer arithmetic without going through a `Rational` at all.
 
 Every Rust panic (dividing by zero, an absurd `--precision`) is caught right at the boundary and turned into a null return plus `decirational_last_error()` — never allowed to unwind into C, which would be undefined behavior. That's verified against a real C program, [`capi/test_decirational.c`](Rust/decirational/capi/test_decirational.c), exercised against both the dynamic and the static library:
 
@@ -220,7 +220,26 @@ decirational_rational_free(a);
 decirational_rational_free(b);
 ```
 
-See the header for the full function list (construction, `add`/`sub`/`mul`/`div`/`pow`/`negate`/`abs`/`reciprocal`, `compare`, `is_zero`/`is_negative`/`is_integer`, and all the `--format` variants) and its conventions: null-on-error (check `decirational_last_error()`), `decirational_string_free`/`decirational_rational_free` for cleanup, and handles tagged internally by which backend built them — mixing a `decimal` and a `tight` handle in one call is a reported error, not undefined behavior.
+`DecimalInteger`/`TightInteger` are exposed the same way, as an opaque `DecirationalInteger` handle tagged by the same `integer_backend` parameter every `decirational_rational_*` function above already takes — `DECIRATIONAL_BACKEND_DECIMAL` (`0`) for `DecimalInteger`, `DECIRATIONAL_BACKEND_TIGHT` (`1`) for `TightInteger` — with its own parallel set of `decirational_integer_*` functions: construction (`parse`, `from_i64`), lifecycle (`free`, `clone`), arithmetic (`add`/`sub`/`mul`/`div`/`mod`/`divmod`/`gcd`/`lcm`/`pow`/`multiply_base`/`divide_by_base`/`negate`/`abs`), queries (`compare`, `is_zero`/`is_one`/`is_unit_abs`/`is_positive`/`is_negative`), and `to_string`:
+
+```c
+DecirationalInteger *six = decirational_integer_from_i64(6, DECIRATIONAL_BACKEND_DECIMAL);
+DecirationalInteger *four = decirational_integer_from_i64(4, DECIRATIONAL_BACKEND_DECIMAL);
+DecirationalInteger *quotient, *remainder;
+decirational_integer_divmod(six, four, &quotient, &remainder);  // 6 = 1*4 + 2
+char *q = decirational_integer_to_string(quotient);  // "1"
+char *r = decirational_integer_to_string(remainder); // "2"
+decirational_string_free(q);
+decirational_string_free(r);
+decirational_integer_free(quotient);
+decirational_integer_free(remainder);
+decirational_integer_free(six);
+decirational_integer_free(four);
+```
+
+A `DecirationalRational` and its backing `DecirationalInteger`s convert both ways: `decirational_rational_numerator`/`decirational_rational_denominator` pull a `Rational`'s numerator/denominator out as new integer handles (alongside the pre-existing `_numerator_string`/`_denominator_string`, which go straight to a string instead), and `decirational_rational_from_integer`/`decirational_rational_from_integers` build a `Rational` (`n`/1, or a reduced `n`/`d`) back up from one or two integer handles.
+
+See the header for the full function list and its conventions: null-on-error (check `decirational_last_error()`), `decirational_string_free`/`decirational_rational_free`/`decirational_integer_free` for cleanup, and handles of both types tagged internally by which backend built them — mixing a `decimal` and a `tight` handle of the same type in one call is a reported error, not undefined behavior.
 
 ### 🐹 Go
 
@@ -370,6 +389,8 @@ The per-language sections above cover how to build/run each binary and how the A
 | `cmp`/`Ord`, `eq`/`PartialEq`, `Display` | `Compare`, `Equals`, `String` | `compareTo`, `equals`, `toString` | ordering, equality, and text conversion |
 
 Construction covers every signed integer width native to that language (`byte`/`short`/`int`/`long` in Java, `int32`/`int64` in Go and Rust) plus parsing directly from a decimal string — the same literal syntax the calculator itself accepts (`new DecimalInteger("12345")` in Java, `DecimalInteger::parse("12345")` in Rust, `dec.ParseDecimalInteger("12345")` in Go). Raw digit/word arrays are also accepted (`new DecimalInteger(digits, negative)`, `DecimalInteger::from_digits`, `dec.NewDecimalInteger(digits, negative)`) for callers building a value digit-by-digit rather than from a string or a native integer.
+
+This table's Rust column is also, function-for-function, the `decirational_integer_*` family in the [raw C ABI](#calling-the-raw-c-api) above (`is_zero` → `decirational_integer_is_zero`, `plus` → `decirational_integer_add`, and so on) — the one binding that otherwise had no way to reach `DecimalInteger`/`TightInteger` directly, only through a `Rational`.
 
 ### `Rational<T>`: the exact-fraction API
 

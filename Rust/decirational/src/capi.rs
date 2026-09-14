@@ -17,10 +17,12 @@
 //!     and MUST be freed with `decirational_string_free`, never with C's
 //!     `free()` directly (the allocator that made them has to be the one
 //!     that frees them).
-//!   - `DecirationalRational` handles are opaque and MUST be freed with
-//!     `decirational_rational_free`. They are backend-tagged internally
-//!     (decimal vs. tight, chosen at construction time); combining two
-//!     handles of different backends in one call is an error, not UB.
+//!   - `DecirationalRational` and `DecirationalInteger` handles are opaque
+//!     and MUST be freed with `decirational_rational_free` /
+//!     `decirational_integer_free` respectively. Both are backend-tagged
+//!     internally (decimal vs. tight, chosen at construction time);
+//!     combining two handles of different backends in one call is an error,
+//!     not UB.
 
 use crate::{CustomInteger, DResult, DecimalInteger, Lexer, Parser, Rational, RoundingMode, TightInteger};
 use std::cell::RefCell;
@@ -504,6 +506,410 @@ pub extern "C" fn decirational_rational_denominator_string(r: *const Decirationa
     string_to_ptr(result)
 }
 
+// ---- the opaque Integer handle ----
+
+enum IntegerHandle {
+    Decimal(DecimalInteger),
+    Tight(TightInteger),
+}
+
+/// An opaque handle to a `DecimalInteger` or `TightInteger` value - the two
+/// `CustomInteger` backends `DecirationalRational` is itself built on,
+/// exposed here directly for callers who want arbitrary-precision integer
+/// arithmetic without going through a `Rational`. Always allocated by this
+/// library; free with `decirational_integer_free`.
+pub struct DecirationalInteger(IntegerHandle);
+
+fn box_integer_handle(h: IntegerHandle) -> *mut DecirationalInteger {
+    Box::into_raw(Box::new(DecirationalInteger(h)))
+}
+
+/// Parses a (possibly signed) decimal integer literal (e.g. "12345", "-7")
+/// into a new handle, or returns NULL on error.
+#[no_mangle]
+pub extern "C" fn decirational_integer_parse(literal: *const c_char, integer_backend: c_int) -> *mut DecirationalInteger {
+    let result = guard(move || {
+        let s = unsafe { cstr_to_str(literal) }?;
+        match integer_backend {
+            BACKEND_DECIMAL => Ok(IntegerHandle::Decimal(DecimalInteger::parse(s).map_err(|e| e.to_string())?)),
+            BACKEND_TIGHT => Ok(IntegerHandle::Tight(TightInteger::parse(s).map_err(|e| e.to_string())?)),
+            other => Err(format!("unknown integer_backend: {}", other)),
+        }
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+/// Builds an integer handle directly from a machine `int64_t`.
+#[no_mangle]
+pub extern "C" fn decirational_integer_from_i64(value: c_longlong, integer_backend: c_int) -> *mut DecirationalInteger {
+    let result = guard(move || match integer_backend {
+        BACKEND_DECIMAL => Ok(IntegerHandle::Decimal(DecimalInteger::from_i64(value))),
+        BACKEND_TIGHT => Ok(IntegerHandle::Tight(TightInteger::from_i64(value))),
+        other => Err(format!("unknown integer_backend: {}", other)),
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+/// Frees a handle previously returned by any `decirational_integer_*`
+/// function. Passing NULL is a no-op.
+#[no_mangle]
+pub extern "C" fn decirational_integer_free(n: *mut DecirationalInteger) {
+    if n.is_null() {
+        return;
+    }
+    unsafe {
+        drop(Box::from_raw(n));
+    }
+}
+
+/// Returns a new, independent handle with the same value.
+#[no_mangle]
+pub extern "C" fn decirational_integer_clone(n: *const DecirationalInteger) -> *mut DecirationalInteger {
+    let result = guard(move || unsafe {
+        if n.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        Ok(match &(*n).0 {
+            IntegerHandle::Decimal(x) => IntegerHandle::Decimal(x.clone()),
+            IntegerHandle::Tight(x) => IntegerHandle::Tight(x.clone()),
+        })
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+fn integer_binary_op(
+    a: *const DecirationalInteger,
+    b: *const DecirationalInteger,
+    decimal_op: impl FnOnce(&DecimalInteger, &DecimalInteger) -> DResult<DecimalInteger>,
+    tight_op: impl FnOnce(&TightInteger, &TightInteger) -> DResult<TightInteger>,
+) -> *mut DecirationalInteger {
+    let result = guard(move || unsafe {
+        if a.is_null() || b.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        match (&(*a).0, &(*b).0) {
+            (IntegerHandle::Decimal(x), IntegerHandle::Decimal(y)) => {
+                Ok(IntegerHandle::Decimal(decimal_op(x, y).map_err(|e| e.to_string())?))
+            }
+            (IntegerHandle::Tight(x), IntegerHandle::Tight(y)) => {
+                Ok(IntegerHandle::Tight(tight_op(x, y).map_err(|e| e.to_string())?))
+            }
+            _ => Err("cannot combine a decimal-backed and a tight-backed Integer".to_string()),
+        }
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+fn integer_unary_op(
+    n: *const DecirationalInteger,
+    decimal_op: impl FnOnce(&DecimalInteger) -> DResult<DecimalInteger>,
+    tight_op: impl FnOnce(&TightInteger) -> DResult<TightInteger>,
+) -> *mut DecirationalInteger {
+    let result = guard(move || unsafe {
+        if n.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        match &(*n).0 {
+            IntegerHandle::Decimal(x) => Ok(IntegerHandle::Decimal(decimal_op(x).map_err(|e| e.to_string())?)),
+            IntegerHandle::Tight(x) => Ok(IntegerHandle::Tight(tight_op(x).map_err(|e| e.to_string())?)),
+        }
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+/// a + b. Both handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_add(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| Ok(x.plus(y)), |x, y| Ok(x.plus(y)))
+}
+
+/// a - b. Both handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_sub(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| Ok(x.minus(y)), |x, y| Ok(x.minus(y)))
+}
+
+/// a * b. Both handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_mul(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| Ok(x.multiply(y)), |x, y| Ok(x.multiply(y)))
+}
+
+/// Truncating integer division a / b (the CLI's `//`). NULL (with an error)
+/// if b is zero. Both handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_div(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| x.divide_by(y), |x, y| x.divide_by(y))
+}
+
+/// a % b. NULL (with an error) if b is zero. Both handles must share the
+/// same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_mod(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| x.modulo(y), |x, y| x.modulo(y))
+}
+
+/// The (always non-negative) greatest common divisor of a and b. Both
+/// handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_gcd(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| Ok(x.gcd(y)), |x, y| Ok(x.gcd(y)))
+}
+
+/// The least common multiple of a and b. NULL (with an error) if both are
+/// zero. Both handles must share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_integer_lcm(a: *const DecirationalInteger, b: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_binary_op(a, b, |x, y| x.lcm(y), |x, y| x.lcm(y))
+}
+
+/// Divides a by b, computing the quotient and remainder in one pass (rather
+/// than calling `decirational_integer_div`/`_mod` separately). On success
+/// (return value 0), `*out_quotient` and `*out_remainder` are set to newly
+/// allocated handles the caller must free; on error (return value -1, check
+/// `decirational_last_error()`) both are set to NULL. `out_quotient` and
+/// `out_remainder` must not be NULL.
+#[no_mangle]
+pub extern "C" fn decirational_integer_divmod(
+    a: *const DecirationalInteger,
+    b: *const DecirationalInteger,
+    out_quotient: *mut *mut DecirationalInteger,
+    out_remainder: *mut *mut DecirationalInteger,
+) -> c_int {
+    let result = guard(move || unsafe {
+        if a.is_null() || b.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        if out_quotient.is_null() || out_remainder.is_null() {
+            return Err("null output pointer".to_string());
+        }
+        match (&(*a).0, &(*b).0) {
+            (IntegerHandle::Decimal(x), IntegerHandle::Decimal(y)) => {
+                let (q, r) = x.divide_by_and_modulo(y).map_err(|e| e.to_string())?;
+                Ok((IntegerHandle::Decimal(q), IntegerHandle::Decimal(r)))
+            }
+            (IntegerHandle::Tight(x), IntegerHandle::Tight(y)) => {
+                let (q, r) = x.divide_by_and_modulo(y).map_err(|e| e.to_string())?;
+                Ok((IntegerHandle::Tight(q), IntegerHandle::Tight(r)))
+            }
+            _ => Err("cannot combine a decimal-backed and a tight-backed Integer".to_string()),
+        }
+    });
+    match result {
+        Some((q, r)) => unsafe {
+            *out_quotient = box_integer_handle(q);
+            *out_remainder = box_integer_handle(r);
+            0
+        },
+        None => {
+            unsafe {
+                if !out_quotient.is_null() {
+                    *out_quotient = ptr::null_mut();
+                }
+                if !out_remainder.is_null() {
+                    *out_remainder = ptr::null_mut();
+                }
+            }
+            -1
+        }
+    }
+}
+
+/// Shifts n by `times` "digits" in its own base - decimal digits (n * 10^times)
+/// for a decimal-backed handle, base-2^32 words (n * (2^32)^times) for a
+/// tight-backed one. NULL (with an error) if times is negative.
+#[no_mangle]
+pub extern "C" fn decirational_integer_multiply_base(n: *const DecirationalInteger, times: c_int) -> *mut DecirationalInteger {
+    integer_unary_op(n, |x| x.multiply_base(times), |x| x.multiply_base(times))
+}
+
+/// The inverse of `decirational_integer_multiply_base`: divides n by
+/// base^times, discarding the low `times` "digits". NULL (with an error) if
+/// times is negative.
+#[no_mangle]
+pub extern "C" fn decirational_integer_divide_by_base(n: *const DecirationalInteger, times: c_int) -> *mut DecirationalInteger {
+    integer_unary_op(n, |x| x.divide_by_base(times), |x| x.divide_by_base(times))
+}
+
+/// n raised to the non-negative `exponent`. NULL (with an error) if exponent
+/// is negative.
+#[no_mangle]
+pub extern "C" fn decirational_integer_pow(n: *const DecirationalInteger, exponent: c_int) -> *mut DecirationalInteger {
+    integer_unary_op(n, |x| x.pow(exponent), |x| x.pow(exponent))
+}
+
+/// -n.
+#[no_mangle]
+pub extern "C" fn decirational_integer_negate(n: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_unary_op(n, |x| Ok(x.negate()), |x| Ok(x.negate()))
+}
+
+/// |n|.
+#[no_mangle]
+pub extern "C" fn decirational_integer_abs(n: *const DecirationalInteger) -> *mut DecirationalInteger {
+    integer_unary_op(n, |x| Ok(x.abs()), |x| Ok(x.abs()))
+}
+
+/// -1/0/1 as a < / == / > b. Both handles must share the same backend.
+/// Returns `INT32_MIN` on error (null handle, or mismatched backends) -
+/// check `decirational_last_error()` to distinguish that from a genuine
+/// comparison result (comparisons never naturally produce `INT32_MIN`).
+#[no_mangle]
+pub extern "C" fn decirational_integer_compare(a: *const DecirationalInteger, b: *const DecirationalInteger) -> c_int {
+    let result = guard(move || unsafe {
+        if a.is_null() || b.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        match (&(*a).0, &(*b).0) {
+            (IntegerHandle::Decimal(x), IntegerHandle::Decimal(y)) => Ok(ordering_to_int(x.cmp(y))),
+            (IntegerHandle::Tight(x), IntegerHandle::Tight(y)) => Ok(ordering_to_int(x.cmp(y))),
+            _ => Err("cannot compare a decimal-backed and a tight-backed Integer".to_string()),
+        }
+    });
+    result.unwrap_or(c_int::MIN)
+}
+
+fn integer_bool_query(
+    n: *const DecirationalInteger,
+    decimal_q: impl FnOnce(&DecimalInteger) -> bool,
+    tight_q: impl FnOnce(&TightInteger) -> bool,
+) -> c_int {
+    let result = guard(move || unsafe {
+        if n.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        Ok(match &(*n).0 {
+            IntegerHandle::Decimal(x) => decimal_q(x),
+            IntegerHandle::Tight(x) => tight_q(x),
+        })
+    });
+    match result {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
+    }
+}
+
+/// 1/0/-1 (true/false/error - check `decirational_last_error()`).
+#[no_mangle]
+pub extern "C" fn decirational_integer_is_zero(n: *const DecirationalInteger) -> c_int {
+    integer_bool_query(n, |x| x.is_zero(), |x| x.is_zero())
+}
+
+/// 1/0/-1 (true/false/error - check `decirational_last_error()`).
+#[no_mangle]
+pub extern "C" fn decirational_integer_is_one(n: *const DecirationalInteger) -> c_int {
+    integer_bool_query(n, |x| x.is_one(), |x| x.is_one())
+}
+
+/// 1/0/-1 (true/false/error - check `decirational_last_error()`). True for
+/// exactly 1 and -1.
+#[no_mangle]
+pub extern "C" fn decirational_integer_is_unit_abs(n: *const DecirationalInteger) -> c_int {
+    integer_bool_query(n, |x| x.is_unit_abs(), |x| x.is_unit_abs())
+}
+
+/// 1/0/-1 (true/false/error - check `decirational_last_error()`).
+#[no_mangle]
+pub extern "C" fn decirational_integer_is_positive(n: *const DecirationalInteger) -> c_int {
+    integer_bool_query(n, |x| x.is_positive(), |x| x.is_positive())
+}
+
+/// 1/0/-1 (true/false/error - check `decirational_last_error()`).
+#[no_mangle]
+pub extern "C" fn decirational_integer_is_negative(n: *const DecirationalInteger) -> c_int {
+    integer_bool_query(n, |x| x.is_negative(), |x| x.is_negative())
+}
+
+/// Renders n as a decimal string. Returns a newly allocated string; free
+/// with `decirational_string_free`.
+#[no_mangle]
+pub extern "C" fn decirational_integer_to_string(n: *const DecirationalInteger) -> *mut c_char {
+    let result = guard(move || unsafe {
+        if n.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        Ok(match &(*n).0 {
+            IntegerHandle::Decimal(x) => x.to_string(),
+            IntegerHandle::Tight(x) => x.to_string(),
+        })
+    });
+    string_to_ptr(result)
+}
+
+// ---- bridging Integer and Rational ----
+
+/// Builds the fraction n/1 from an integer handle.
+#[no_mangle]
+pub extern "C" fn decirational_rational_from_integer(n: *const DecirationalInteger) -> *mut DecirationalRational {
+    let result = guard(move || unsafe {
+        if n.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        Ok(match &(*n).0 {
+            IntegerHandle::Decimal(x) => RationalHandle::Decimal(Rational::from_integer(x.clone())),
+            IntegerHandle::Tight(x) => RationalHandle::Tight(Rational::from_integer(x.clone())),
+        })
+    });
+    result.map(box_handle).unwrap_or(ptr::null_mut())
+}
+
+/// Builds a reduced, sign-normalized fraction numerator/denominator from two
+/// integer handles. NULL (with an error) if denominator is zero, or if the
+/// two handles do not share the same backend.
+#[no_mangle]
+pub extern "C" fn decirational_rational_from_integers(
+    numerator: *const DecirationalInteger,
+    denominator: *const DecirationalInteger,
+) -> *mut DecirationalRational {
+    let result = guard(move || unsafe {
+        if numerator.is_null() || denominator.is_null() {
+            return Err("null Integer handle".to_string());
+        }
+        match (&(*numerator).0, &(*denominator).0) {
+            (IntegerHandle::Decimal(n), IntegerHandle::Decimal(d)) => {
+                Ok(RationalHandle::Decimal(Rational::new(n.clone(), d.clone()).map_err(|e| e.to_string())?))
+            }
+            (IntegerHandle::Tight(n), IntegerHandle::Tight(d)) => {
+                Ok(RationalHandle::Tight(Rational::new(n.clone(), d.clone()).map_err(|e| e.to_string())?))
+            }
+            _ => Err("numerator and denominator must share the same backend".to_string()),
+        }
+    });
+    result.map(box_handle).unwrap_or(ptr::null_mut())
+}
+
+/// The (always-reduced) numerator of r, as a new integer handle.
+#[no_mangle]
+pub extern "C" fn decirational_rational_numerator(r: *const DecirationalRational) -> *mut DecirationalInteger {
+    let result = guard(move || unsafe {
+        if r.is_null() {
+            return Err("null Rational handle".to_string());
+        }
+        Ok(match &(*r).0 {
+            RationalHandle::Decimal(x) => IntegerHandle::Decimal(x.numerator().clone()),
+            RationalHandle::Tight(x) => IntegerHandle::Tight(x.numerator().clone()),
+        })
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
+/// The (always-reduced, always-positive) denominator of r, as a new integer
+/// handle.
+#[no_mangle]
+pub extern "C" fn decirational_rational_denominator(r: *const DecirationalRational) -> *mut DecirationalInteger {
+    let result = guard(move || unsafe {
+        if r.is_null() {
+            return Err("null Rational handle".to_string());
+        }
+        Ok(match &(*r).0 {
+            RationalHandle::Decimal(x) => IntegerHandle::Decimal(x.denominator().clone()),
+            RationalHandle::Tight(x) => IntegerHandle::Tight(x.denominator().clone()),
+        })
+    });
+    result.map(box_integer_handle).unwrap_or(ptr::null_mut())
+}
+
 // A from-Rust smoke test of the extern "C" functions themselves, so `cargo
 // test` alone gives some coverage of this module without requiring a C
 // toolchain. The authoritative, thorough verification of the actual FFI
@@ -593,5 +999,83 @@ mod tests {
         assert!(decirational_rational_add(ptr::null(), ptr::null()).is_null());
         assert_eq!(decirational_rational_is_zero(ptr::null()), -1);
         assert!(decirational_rational_to_string(ptr::null(), FORMAT_DEFAULT, 0, ROUNDING_HALF_UP).is_null());
+    }
+
+    #[test]
+    fn integer_construct_arithmetic_format_free() {
+        let a = decirational_integer_from_i64(6, BACKEND_DECIMAL);
+        let b = decirational_integer_from_i64(4, BACKEND_DECIMAL);
+        assert!(!a.is_null() && !b.is_null());
+
+        let sum = decirational_integer_add(a, b);
+        let s = decirational_integer_to_string(sum);
+        assert_eq!(unsafe { to_string(s) }, "10");
+        decirational_string_free(s);
+        decirational_integer_free(sum);
+
+        let gcd = decirational_integer_gcd(a, b);
+        assert_eq!(unsafe { to_string(decirational_integer_to_string(gcd)) }, "2");
+        decirational_integer_free(gcd);
+
+        let mut q = ptr::null_mut();
+        let mut rem = ptr::null_mut();
+        assert_eq!(decirational_integer_divmod(a, b, &mut q, &mut rem), 0);
+        assert_eq!(unsafe { to_string(decirational_integer_to_string(q)) }, "1");
+        assert_eq!(unsafe { to_string(decirational_integer_to_string(rem)) }, "2");
+        decirational_integer_free(q);
+        decirational_integer_free(rem);
+
+        decirational_integer_free(a);
+        decirational_integer_free(b);
+    }
+
+    #[test]
+    fn integer_divmod_by_zero_is_a_normal_error() {
+        let a = decirational_integer_from_i64(6, BACKEND_DECIMAL);
+        let zero = decirational_integer_from_i64(0, BACKEND_DECIMAL);
+        let mut q = ptr::null_mut();
+        let mut rem = ptr::null_mut();
+        assert_eq!(decirational_integer_divmod(a, zero, &mut q, &mut rem), -1);
+        assert!(q.is_null() && rem.is_null());
+        decirational_integer_free(a);
+        decirational_integer_free(zero);
+    }
+
+    #[test]
+    fn integer_mismatched_backends_are_a_normal_error() {
+        let decimal_one = decirational_integer_from_i64(1, BACKEND_DECIMAL);
+        let tight_one = decirational_integer_from_i64(1, BACKEND_TIGHT);
+        assert!(decirational_integer_add(decimal_one, tight_one).is_null());
+        assert_eq!(decirational_integer_compare(decimal_one, tight_one), c_int::MIN);
+        decirational_integer_free(decimal_one);
+        decirational_integer_free(tight_one);
+    }
+
+    #[test]
+    fn rational_integer_bridge_round_trip() {
+        let literal = CString::new("7/4").unwrap();
+        let r = decirational_rational_parse(literal.as_ptr(), BACKEND_DECIMAL);
+        assert!(!r.is_null());
+        let num = decirational_rational_numerator(r);
+        let den = decirational_rational_denominator(r);
+        assert_eq!(unsafe { to_string(decirational_integer_to_string(num)) }, "7");
+        assert_eq!(unsafe { to_string(decirational_integer_to_string(den)) }, "4");
+
+        let rebuilt = decirational_rational_from_integers(num, den);
+        assert!(!rebuilt.is_null());
+        let s = decirational_rational_to_string(rebuilt, FORMAT_DEFAULT, 0, ROUNDING_HALF_UP);
+        assert_eq!(unsafe { to_string(s) }, "7/4");
+        decirational_string_free(s);
+
+        decirational_rational_free(rebuilt);
+        decirational_integer_free(num);
+        decirational_integer_free(den);
+        decirational_rational_free(r);
+
+        let zero = decirational_integer_from_i64(0, BACKEND_DECIMAL);
+        let one = decirational_integer_from_i64(1, BACKEND_DECIMAL);
+        assert!(decirational_rational_from_integers(one, zero).is_null());
+        decirational_integer_free(zero);
+        decirational_integer_free(one);
     }
 }
